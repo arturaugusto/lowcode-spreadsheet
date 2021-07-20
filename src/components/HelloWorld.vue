@@ -1,12 +1,11 @@
 <template>
   <div class="hello">
-    {{selectRange.focus}}
     <div class="columns is-mobile" v-for="row in rows" :key="row.id">
       <div
         v-bind:class="
           {
-            'focused-cell': selectRange.focus.id === cell.id,
-            'selected-cell': selectRangeCellsIdsMap[cell.id] && selectRange.focus.id !== cell.id,
+            'focused-cell': selInfo.focus.id === cell.id,
+            'selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
             
           }"
         class="column is-2 is-gapless p-0"
@@ -32,18 +31,28 @@
     </div>
   </div>
   <br>
-  <input @keydown.prevent="cellKeyDownHandler($event, {})" ref="dummy">
-  <div>{{selectionRangeCoords}}</div>
-  <div>{{selectRange}}</div>
+  <textarea @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
+  <!-- <div>{{rangeSelected}}</div> -->
+  <!-- <div>{{selectRange}}</div> -->
 </template>
 
 <script>
+
+import {parseArrayString, stringifyArray} from "@/vendor/sheetclip.js";
+
 export default {
   name: 'HelloWorld',
   props: {
     msg: String
   },
   methods: {
+    startEditingCell (cell) {
+      this.editingCell = cell
+      this.editingCellBackup = JSON.parse(JSON.stringify(this.editingCell))
+      this.$nextTick(() => {
+        this.$refs[cell.id].focus()
+      })
+    },
     cellInputEventHandler (event, cell) {
 
       this.f2Bool = event.key === 'F2' || this.f2Bool
@@ -69,10 +78,12 @@ export default {
       }
     },
     cellKeyDownHandler (event, cell) {
+      // prevent loose focus
+      if (event.target === this.$refs.dummy && event.key === 'Tab') event.preventDefault()
 
-      const cellId = cell.id || this.selectRange.focus.id
+      const cellId = cell.id || this.selInfo.focus.id
 
-      const cellLinks = this.cellLinksByIdMap[cellId]
+      const cellLinks = this.cellLinksByCellIdMap[cellId]
 
       if (!cellLinks.id) return
 
@@ -80,129 +91,247 @@ export default {
 
       // range select
       if (event.shiftKey && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
-        let extendOriginCell = this.selectRange.end.id ? this.selectRange.end : cellLinks.focus
+        let extendOriginCell = this.selInfo.end.id ? this.selInfo.end : cellLinks.self
         let candidateCell = {id: undefined}
 
-        if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByIdMap[extendOriginCell.id].top     }
-        if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByIdMap[extendOriginCell.id].bottom  }
-        if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByIdMap[extendOriginCell.id].left    }
-        if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByIdMap[extendOriginCell.id].right   }
+        if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top     }
+        if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom  }
+        if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left    }
+        if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right   }
         
-        this.selectRange.end = candidateCell.id ? candidateCell : this.selectRange.end
+        this.selInfo.end = candidateCell.id ? candidateCell : this.selInfo.end
 
         return
       } else {
         
         if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
-          this.selectRange.end = {id: undefined}
+          this.selInfo.end = {id: undefined}
         }
       }
 
+      // handle ctrl key
+
+      if (event.ctrlKey) {
+        let selectedData = !this.rangeSelected ? [[this.selInfo.focus.val]] : this.rows.filter(row => {
+          return row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).length
+        }).map(row => row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).map(cell => cell.val))
+
+        this.$refs.dummy.value = stringifyArray(selectedData)
+        // when user press ctrl+c, will copy selected text
+        this.$refs.dummy.select()
+
+        if (event.key === 'v') {
+          window.setTimeout(() => {
+            let dataToPaste = parseArrayString(this.$refs.dummy.value)
+            
+            let parteOrigin = this.cellLinksByCellIdMap[this.selInfo.focus.id]
+            
+            dataToPaste.forEach(() => {
+              
+              console.log(this.rows[parteOrigin.row_i].cells[parteOrigin.cell_i])
+            })
+
+          }, 80)
+        }
+        return
+      }
 
       // start editing current cell.
-      // If pressed key is a single character, set input
-      if (event.key.length === 1 || (['F2'].indexOf(event.key) !== -1)) {
+      if (event.key.length === 1 || event.key === 'F2') {
 
-        this.editingCell = cellLinks.focus
-        this.editingCellBackup = JSON.parse(JSON.stringify(this.editingCell))
+        this.startEditingCell(cellLinks.self)
         
-        if (event.key.length === 1) this.editingCell.val = event.key
+        // if pressed key is a single character, clear input before focus
+        if (event.key.length === 1) this.editingCell.val = ''
 
-        this.$nextTick(() => {
-          this.$refs[cellLinks.id].focus()
-        })
         return
       }
 
       if (event.key === 'ArrowUp') {
         if (cellLinks.top.id) {
-          this.selectRange.focus = cellLinks.top
-          this.selectRange.origin = cellLinks.top
+          this.selInfo.focus = cellLinks.top
+          this.selInfo.origin = cellLinks.top
           return
         }
       }
 
       if (event.key === 'ArrowDown') {
         if (cellLinks.bottom.id) {
-          this.selectRange.focus = cellLinks.bottom
-          this.selectRange.origin = cellLinks.bottom
+          this.selInfo.focus = cellLinks.bottom
+          this.selInfo.origin = cellLinks.bottom
           return
         }
       }
 
       if (event.key === 'ArrowLeft') {
         if (cellLinks.left.id) {
-          this.selectRange.focus = cellLinks.left
-          this.selectRange.origin = cellLinks.left
+          this.selInfo.focus = cellLinks.left
+          this.selInfo.origin = cellLinks.left
           return
         }
       }
 
       if (event.key === 'ArrowRight') {
         if (cellLinks.right.id) {
-          this.selectRange.focus = cellLinks.right
-          this.selectRange.origin = cellLinks.right
+          this.selInfo.focus = cellLinks.right
+          this.selInfo.origin = cellLinks.right
 
           return
         }
+      }
+
+      const cellIsOnRangeSelected = (cell) => {
+        return this.selectRangeCellsIdsMap[cell.id]
       }
 
       if (event.key === 'Tab' && !event.shiftKey) {
-        if (cellLinks.right.id) {
-          this.selectRange.focus = cellLinks.right
+        // on tab overflow get next line first cell
+        // TODO: refactor to prevent similar code
+        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.right)) {
+          
+          // find cell to get focus when we press tab and goes to other line
+          let candidateCell = this.selectedCellsLinkFlat
+            .filter(link => link.row_i === cellLinks.row_i + 1)[0]
+
+          if (candidateCell !== undefined) {
+            // if reach end of row, go to first from next row
+            this.selInfo.focus = candidateCell
+          } else {
+            // if reach end of selection, go to first
+            this.selInfo.focus = this.selectedCellsLinkFlat[0]
+          }
           return
         }
+        if (cellLinks.right.id) {
+          this.selInfo.focus = cellLinks.right
+          return
+        }
+        return
       }
       
       if (event.key === 'Tab' && event.shiftKey) {
+        // on tab overflow get pŕev line last cell
+        // TODO: refactor to prevent similar code
+        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.left)) {
+          
+          // find cell to get focus when we press tab and goes to other line
+          let candidatesCells = this.selectedCellsLinkFlat
+            .filter(link => link.row_i === cellLinks.row_i - 1)
+          let candidateCell = candidatesCells[candidatesCells.length-1]
+
+          if (candidateCell !== undefined) {
+            // if reach begin of row, go to last from prev row
+            this.selInfo.focus = candidateCell
+          } else {
+            // if reach end of selection, go to first
+            this.selInfo.focus = this.selectedCellsLinkFlat[this.selectedCellsLinkFlat.length-1]
+          }
+          return
+        }
         if (cellLinks.left.id) {
-          this.selectRange.focus = cellLinks.left
+          if (this.rangeSelected && !this.selectRangeCellsIdsMap[cellLinks.left.id]) return
+          this.selInfo.focus = cellLinks.left
           return
         }
       }
 
       if (event.key === 'Enter' && event.shiftKey) {
+        // on tab overflow get pŕev col last cell
+        // TODO: refactor to prevent similar code
+        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.top)) {
+          
+          // find cell to get focus when we press tab and goes to other line
+          let candidatesCells = this.selectedCellsLinkFlat
+            .filter(link => link.cell_i === cellLinks.cell_i - 1)
+          let candidateCell = candidatesCells[candidatesCells.length-1]
+
+          if (candidateCell !== undefined) {
+            // if reach begin of col, go to last from prev col
+            this.selInfo.focus = candidateCell
+          } else {
+            // if reach end of selection, go to first
+            this.selInfo.focus = this.selectedCellsLinkFlat[this.selectedCellsLinkFlat.length-1]
+          }
+          return
+        }
+
         if (cellLinks.top.id) {
-          this.selectRange.focus = cellLinks.top
+          this.selInfo.focus = cellLinks.top
+          if (!this.rangeSelected) this.selInfo.origin = cellLinks.top
           return
         }
       }
 
       if (event.key === 'Enter' && !event.shiftKey) {
+        // on tab overflow get next col first cell
+        // TODO: refactor to prevent similar code
+        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.bottom)) {
+          
+          let candidateCell = this.selectedCellsLinkFlat
+            .filter(link => link.cell_i === cellLinks.cell_i + 1)[0]
+
+          if (candidateCell !== undefined) {
+            // if reach end of col, go to first cell from next col
+            this.selInfo.focus = candidateCell
+          } else {
+            // if reach end of selection, go to first
+            this.selInfo.focus = this.selectedCellsLinkFlat[0]
+          }
+          return
+        }
         if (cellLinks.bottom.id) {
-          this.selectRange.focus = cellLinks.bottom
+          this.selInfo.focus = cellLinks.bottom
+          if (!this.rangeSelected) this.selInfo.origin = cellLinks.bottom
+          
           return
         }
       }
     },
     selectCell (event, cell) {
 
-      
-      if (event.type === "mousemove") {
-        if (event.buttons === 1) {
-          this.selectRange.end = cell
-          this.$refs.dummy.focus()
-        }
-      }
-
       if (event.type === 'click') {
+        if (this.editingCell.id) return
         this.$refs.dummy.focus()
       }
 
       if (event.type === "mousedown") {
+
+        // stop editing only if mousedown on other cell
+        if (this.editingCell.id && event.target === this.$refs[this.selInfo.focus.id]) return
+        
+        if (event.timeStamp - this.mousedownTimeStamp <= 300) {
+          this.mousedownTimeStamp = -Infinity
+          event.preventDefault()
+          // double click enable selecting text, the same as pressing f2
+          this.f2Bool = true
+          this.startEditingCell(cell)
+        }
+        
+        this.mousedownTimeStamp = event.timeStamp
+
+
         this.$refs.dummy.focus()
         if (event.shiftKey) {
-          this.selectRange.end = cell
-          if (!this.selectRange.origin.id) {
-            this.selectRange.focus = cell
-            this.selectRange.origin = cell
+          this.selInfo.end = cell
+          if (!this.selInfo.origin.id) {
+            this.selInfo.focus = cell
+            this.selInfo.origin = cell
           }
         } else {
-          this.selectRange.end = {id: undefined}
-          this.selectRange.focus = cell
-          this.selectRange.origin = cell
+          this.selInfo.end = {id: undefined}
+          this.selInfo.focus = cell
+          this.selInfo.origin = cell
         }
       }
+
+      if (event.type === "mousemove") {
+        if (this.editingCell.id) return
+        if (event.buttons === 1) {
+          this.selInfo.end = cell
+          this.$refs.dummy.focus()
+        }
+      }
+
     },
     stopCellEdit (cell) {
       if (this.editingCell.id === cell.id) {
@@ -211,8 +340,12 @@ export default {
     },
   },
   computed: {
+    rangeSelected () {
+      if (!this.selInfo.end.id) return false
+      return this.selInfo.origin.id !== this.selInfo.end.id
+    },
     selectionRangeCoords () {
-      if (!this.selectRange.origin.id || !this.selectRange.end.id) {
+      if (!this.selInfo.origin.id || !this.selInfo.end.id) {
         return {
           startx: 0,
           starty: 0,
@@ -221,8 +354,8 @@ export default {
         }
       }
 
-      let originCellLinks = this.cellLinksByIdMap[this.selectRange.origin.id]
-      let endCellLinks = this.cellLinksByIdMap[this.selectRange.end.id]
+      let originCellLinks = this.cellLinksByCellIdMap[this.selInfo.origin.id]
+      let endCellLinks = this.cellLinksByCellIdMap[this.selInfo.end.id]
 
       let startx = Math.min(originCellLinks.cell_i, endCellLinks.cell_i)
       let endx = Math.max(originCellLinks.cell_i, endCellLinks.cell_i)
@@ -239,11 +372,11 @@ export default {
 
     },
     selectRangeCellsIdsMap () {
-      if (!this.selectRange.end.id) return {}
+      if (!this.selInfo.end.id) return {}
       
       let {startx, starty, endx, endy} = this.selectionRangeCoords
 
-      return this.cellLinksArray.filter(cell => {
+      return this.cellLinksArrayFlat.filter(cell => {
         return cell && cell.row_i >= starty && cell.row_i <= endy && cell.cell_i >= startx && cell.cell_i <= endx
       }).reduce((a, c) => (a[c.id]=true)&&a, {})
     },
@@ -254,7 +387,7 @@ export default {
             id:     cell.id,
             row_i:  row_i,
             cell_i: cell_i,
-            focus:  cell,
+            self:  cell,
             left:   cell_i ?                        row.cells[cell_i-1]               : {id: undefined},
             right:  cell_i < row.cells.length -1 ?  row.cells[cell_i+1]               : {id: undefined},
             top:    row_i ?                         this.rows[row_i-1].cells[cell_i]  : {id: undefined},
@@ -263,26 +396,25 @@ export default {
         )
       ).flat()
     },
-    // focusMovementCellLinksArray () {
-    //   return this.cellLinksArray.filter(link => {
-    //     return link.row_i >= this.selectionRangeCoords.starty &&
-    //       link.row_i <= this.selectionRangeCoords.endy &&
-    //       link.cell_i >= this.selectionRangeCoords.startx &&
-    //       link.cell_i <= this.selectionRangeCoords.endy
-    //   })
-    // },
-    cellLinksByIdMap () {
-      return this.cellLinksArray
+    cellLinksArrayFlat () {
+      return this.cellLinksArray.flat()
+    },
+    cellLinksByCellIdMap () {
+      return this.cellLinksArrayFlat
         .reduce((a, c) => (a[c.id] = c)&&a, {})
       ;
+    },
+    selectedCellsLinkFlat () {
+      return this.cellLinksArrayFlat.filter(link => this.selectRangeCellsIdsMap[link.self.id])
     }
   },
   data () {
     return {
+      mousedownTimeStamp: -Infinity,
       f2Bool: false,
       editingCell: {id: undefined},
       editingCellBackup: {id: undefined},
-      selectRange: {
+      selInfo: {
         origin: {id: undefined},
         focus: {id: undefined},
         end: {id: undefined},
