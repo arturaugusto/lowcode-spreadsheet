@@ -32,7 +32,8 @@
   </div>
   <br>
   <textarea @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
-  <!-- <div>{{rangeSelected}}</div> -->
+  <div>{{selInfo}}</div>
+  <div>{{rangeSelected}}</div>
   <!-- <div>{{selectRange}}</div> -->
 </template>
 
@@ -124,11 +125,20 @@ export default {
           window.setTimeout(() => {
             let dataToPaste = parseArrayString(this.$refs.dummy.value)
             
-            let parteOrigin = this.cellLinksByCellIdMap[this.selInfo.focus.id]
-            
-            dataToPaste.forEach(() => {
-              
-              console.log(this.rows[parteOrigin.row_i].cells[parteOrigin.cell_i])
+            let pointer = this.selectedCellsLinkFlat[0]
+
+            dataToPaste.forEach((row) => {
+              let rowOriginId = pointer.self.id
+              row.forEach((val) => {
+                pointer.self.val = val
+                if (pointer.right.id) {
+                  pointer = this.cellLinksByCellIdMap[pointer.right.id]
+                }
+              })
+              if (this.cellLinksByCellIdMap[rowOriginId].bottom.id) {
+                let bottomId = this.cellLinksByCellIdMap[rowOriginId].bottom.id
+                pointer = this.cellLinksByCellIdMap[bottomId]
+              }
             })
 
           }, 80)
@@ -185,52 +195,60 @@ export default {
       }
 
       if (event.key === 'Tab' && !event.shiftKey) {
+        if (!this.rangeSelected) this.selInfo.end = {}
         // on tab overflow get next line first cell
         // TODO: refactor to prevent similar code
-        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.right)) {
-          
+        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.right) || !this.rangeSelected && !cellLinks.right.id) {
+          // if (!this.rangeSelected) this.selInfo.end = {}
           // find cell to get focus when we press tab and goes to other line
-          let candidateCell = this.selectedCellsLinkFlat
+          let cellsLinksSource = (this.rangeSelected ? this.selectedCellsLinkFlat : this.cellLinksArrayFlat)
+          let candidateCellLink = cellsLinksSource
             .filter(link => link.row_i === cellLinks.row_i + 1)[0]
 
-          if (candidateCell !== undefined) {
+          if (candidateCellLink !== undefined) {
             // if reach end of row, go to first from next row
-            this.selInfo.focus = candidateCell
+            this.selInfo.focus = candidateCellLink.self
           } else {
             // if reach end of selection, go to first
-            this.selInfo.focus = this.selectedCellsLinkFlat[0]
+            this.selInfo.focus = cellsLinksSource[0].self
           }
+          if (!this.rangeSelected) this.selInfo.origin = this.selInfo.focus
           return
         }
         if (cellLinks.right.id) {
           this.selInfo.focus = cellLinks.right
+          if (!this.rangeSelected) this.selInfo.origin = this.selInfo.focus
           return
         }
         return
       }
       
       if (event.key === 'Tab' && event.shiftKey) {
+        if (!this.rangeSelected) this.selInfo.end = {}
         // on tab overflow get pŕev line last cell
         // TODO: refactor to prevent similar code
-        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.left)) {
+        if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.left) || !this.rangeSelected && !cellLinks.left.id) {
           
           // find cell to get focus when we press tab and goes to other line
-          let candidatesCells = this.selectedCellsLinkFlat
+          let cellsLinksSource = (this.rangeSelected ? this.selectedCellsLinkFlat : this.cellLinksArrayFlat)
+          let candidatesCells = cellsLinksSource
             .filter(link => link.row_i === cellLinks.row_i - 1)
-          let candidateCell = candidatesCells[candidatesCells.length-1]
+          let candidateCellLink = candidatesCells[candidatesCells.length-1]
 
-          if (candidateCell !== undefined) {
+          if (candidateCellLink !== undefined) {
             // if reach begin of row, go to last from prev row
-            this.selInfo.focus = candidateCell
+            this.selInfo.focus = candidateCellLink.self
           } else {
             // if reach end of selection, go to first
-            this.selInfo.focus = this.selectedCellsLinkFlat[this.selectedCellsLinkFlat.length-1]
+            this.selInfo.focus = cellsLinksSource[cellsLinksSource.length-1].self
           }
+          if (!this.rangeSelected) this.selInfo.origin = this.selInfo.focus
           return
         }
         if (cellLinks.left.id) {
           if (this.rangeSelected && !this.selectRangeCellsIdsMap[cellLinks.left.id]) return
           this.selInfo.focus = cellLinks.left
+          if (!this.rangeSelected) this.selInfo.origin = this.selInfo.focus
           return
         }
       }
@@ -243,14 +261,14 @@ export default {
           // find cell to get focus when we press tab and goes to other line
           let candidatesCells = this.selectedCellsLinkFlat
             .filter(link => link.cell_i === cellLinks.cell_i - 1)
-          let candidateCell = candidatesCells[candidatesCells.length-1]
+          let candidateCellLink = candidatesCells[candidatesCells.length-1]
 
-          if (candidateCell !== undefined) {
+          if (candidateCellLink !== undefined) {
             // if reach begin of col, go to last from prev col
-            this.selInfo.focus = candidateCell
+            this.selInfo.focus = candidateCellLink.self
           } else {
             // if reach end of selection, go to first
-            this.selInfo.focus = this.selectedCellsLinkFlat[this.selectedCellsLinkFlat.length-1]
+            this.selInfo.focus = this.selectedCellsLinkFlat[this.selectedCellsLinkFlat.length-1].self
           }
           return
         }
@@ -267,15 +285,15 @@ export default {
         // TODO: refactor to prevent similar code
         if (this.rangeSelected && !cellIsOnRangeSelected(cellLinks.bottom)) {
           
-          let candidateCell = this.selectedCellsLinkFlat
+          let candidateCellLink = this.selectedCellsLinkFlat
             .filter(link => link.cell_i === cellLinks.cell_i + 1)[0]
 
-          if (candidateCell !== undefined) {
+          if (candidateCellLink !== undefined) {
             // if reach end of col, go to first cell from next col
-            this.selInfo.focus = candidateCell
+            this.selInfo.focus = candidateCellLink.self
           } else {
             // if reach end of selection, go to first
-            this.selInfo.focus = this.selectedCellsLinkFlat[0]
+            this.selInfo.focus = this.selectedCellsLinkFlat[0].self
           }
           return
         }
