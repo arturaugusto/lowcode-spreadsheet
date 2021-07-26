@@ -1,7 +1,8 @@
 <template>
   <section class="section">
+    <input v-model="cols">
     <div class="container">
-      <HelloWorld msg="Welcome to Your Vue.js App"/>
+      <HelloWorld :schema="{'cols': cols.split(',').map((x) => Object({name: x}))}"/>
     </div>
   </section>
 </template>
@@ -13,6 +14,11 @@ export default {
   name: 'App',
   components: {
     HelloWorld
+  },
+  data () {
+    return {
+      cols: 'A,B'
+    }
   }
 }
 </script>

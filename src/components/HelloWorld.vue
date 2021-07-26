@@ -1,5 +1,5 @@
 <template>
-  <div class="hello">
+  <div>
     <div class="columns is-mobile" v-for="row in rows" :key="row.id">
       <div
         v-bind:class="
@@ -17,23 +17,30 @@
         :key="cell.id"
         >
           <input
-            @blur="stopCellEdit(cell)"
             @keydown="cellInputEventHandler($event, cell)"
             v-if="editingCell.id === cell.id"
-            :ref="cell.id"
             class="cell-input"
-            v-model="cell.val"
+            :ref="cell.id"
           >
+            <!-- @blur="stopCellEdit($event, cell)" -->
           <span
             @keydown="cellKeyDownHandler($event, cell)"
-            v-else>{{cell.val}}</span>
+            v-else>{{cell.val}}
+            <br>
+          </span>
       </div>
     </div>
   </div>
   <br>
   <textarea @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
-  <div>{{selInfo}}</div>
-  <div>{{rangeSelected}}</div>
+  <div>{{cols}}</div>
+  <!-- <div>{{selInfo}}</div> -->
+  <!-- <div>{{rangeSelected}}</div> -->
+  <!-- <div>{{rows}}</div> -->
+  <div v-for="(event, i) in events" :key="i">
+    {{event}}
+  </div>
+  
   <!-- <div>{{selectRange}}</div> -->
 </template>
 
@@ -44,39 +51,122 @@ import {parseArrayString, stringifyArray} from "@/vendor/sheetclip.js";
 export default {
   name: 'HelloWorld',
   props: {
-    msg: String
+    schema: Object
+  },
+  watch: {
+    cols: function (val) {
+      console.log(val)
+    }
+  },
+  mounted () {
+    console.log(this.cols)
+    console.log(this.schema)
   },
   methods: {
+    insertRow () {
+      let rowsDoAdd = 1
+      let newData = new Array(rowsDoAdd).fill().map(() => Object({
+        id: ''+Math.random(),
+        cells: new Array(this.cols.length).fill().map(() => Object({
+          id: ''+Math.random(),
+          val: '',
+        }))
+      }))
+      
+      let start = this.selectionRangeCoords.starty
+      this.rows.splice(
+        start,
+        0,
+        ...newData
+      )
+
+      this.addEvent(['splice', start, 0, newData])
+
+
+    },
+    redo () {
+      if (this.eventIndex === this.events.length) return
+      let event = this.events[this.eventIndex].e
+      if (event[0] === 'change') {
+        event[1].forEach(item => {
+          let cell = this.cellLinksByCellIdMap[item[0]].self
+          cell.val = item[2]
+        })
+      }
+
+      if (event[0] === 'splice') {
+        this.rows.splice(event[1], 0, ...event[3])
+      }
+
+      this.eventIndex = this.eventIndex + 1
+      
+    },
+    undo () {
+      if (this.eventIndex === 0) return
+      let event = this.events[this.eventIndex - 1].e
+      if (event[0] === 'change') {
+        event[1].forEach(item => {
+          let cell = this.cellLinksByCellIdMap[item[0]].self
+          cell.val = item[1]
+        })
+      }
+
+      if (event[0] === 'splice') {
+        this.rows.splice(event[1], event[3].length)
+      }
+
+      this.eventIndex = this.eventIndex - 1
+    },
+    addEvent (event) {
+      this.events.splice(this.eventIndex)
+      this.events.push({id: new Date().toISOString(), e: event})
+      this.eventIndex = this.events.length
+    },
     startEditingCell (cell) {
       this.editingCell = cell
       this.editingCellBackup = JSON.parse(JSON.stringify(this.editingCell))
       this.$nextTick(() => {
+        this.$refs[cell.id].value = cell.val
         this.$refs[cell.id].focus()
       })
     },
     cellInputEventHandler (event, cell) {
 
       this.f2Bool = event.key === 'F2' || this.f2Bool
-
+      
       if (event.key === 'Escape') {
         this.editingCell = Object.assign(this.editingCell, this.editingCellBackup)
         this.f2Bool = false
+        this.editingCell = {id: undefined}
         this.$refs.dummy.focus()
       }
 
+
       if ('Tab ArrowDown ArrowUp ArrowLeft ArrowRight Enter'.split(' ').indexOf(event.key) !== -1) {
+        
 
         if (this.f2Bool && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
           return
+        }
+
+        // handle when user type someting with a cell focus
+        if (this.editingCell.id === cell.id) {
+          cell.val = event.target.value
+          if (event.target.value !== this.editingCellBackup.val) {
+            this.addEvent(['change', [[this.editingCell.id, this.editingCellBackup.val, event.target.value]]])
+          }
+          this.editingCell = {id: undefined}
         }
 
         this.f2Bool = false
 
         // prevent loosing focus
         if (event.key === 'Tab') event.preventDefault()
+        this.editingCell = {id: undefined}
         this.$refs.dummy.focus()
         this.cellKeyDownHandler(event, cell)
       }
+
     },
     cellKeyDownHandler (event, cell) {
       // prevent loose focus
@@ -86,33 +176,105 @@ export default {
 
       const cellLinks = this.cellLinksByCellIdMap[cellId]
 
-      if (!cellLinks.id) return
+      if (!cellLinks || !cellLinks.id) return
 
       this.f2Bool = event.key === 'F2' || this.f2Bool
 
       // range select
-      if (event.shiftKey && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
-        let extendOriginCell = this.selInfo.end.id ? this.selInfo.end : cellLinks.self
-        let candidateCell = {id: undefined}
+      if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
+        if (event.ctrlKey) {
 
-        if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top     }
-        if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom  }
-        if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left    }
-        if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right   }
-        
-        this.selInfo.end = candidateCell.id ? candidateCell : this.selInfo.end
+          let originCell = this.rangeSelected ? this.selInfo.end : this.selInfo.focus
+          for (var i = 0; i < 10000; i++) {
+            let candidateCell = {id: undefined}
 
-        return
-      } else {
-        
-        if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
+            if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByCellIdMap[originCell.id].top     }
+            if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByCellIdMap[originCell.id].bottom  }
+            if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByCellIdMap[originCell.id].left    }
+            if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByCellIdMap[originCell.id].right   }
+            
+            if (candidateCell.id) {
+              if (candidateCell.val && !originCell.val) {
+                originCell = candidateCell
+                break
+              }
+
+              if (!candidateCell.val && originCell.val && i !== 0) {
+                break
+              }
+
+              originCell = candidateCell
+            } else break
+
+          }
+
+          if (event.shiftKey) {
+            this.selInfo.end = originCell
+          } else {
+            this.selInfo.focus = originCell
+            this.selInfo.end = {id: undefined}
+            this.selInfo.origin = originCell
+          }
+          return
+          // this.selInfo.end = candidateCell
+          // this.selInfo.focus = candidateCell
+          // this.selInfo.end = this.selInfo.focus
+
+          
+
+
+          // this.selInfo.origin = this.selInfo.focus
+        }
+
+        if (event.shiftKey) {
+          let extendOriginCell = this.selInfo.end.id ? this.selInfo.end : cellLinks.self
+          let candidateCell = {id: undefined}
+
+          if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top     }
+          if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom  }
+          if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left    }
+          if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right   }
+          
+          this.selInfo.end = candidateCell.id ? candidateCell : this.selInfo.end
+
+          return
+        } else {
           this.selInfo.end = {id: undefined}
         }
       }
 
+      // handle delete
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (!this.rangeSelected) {
+          this.addEvent(['change', [[this.selInfo.focus.id, this.selInfo.focus.val, '']]])
+          this.selInfo.focus.val = ''
+        } else {
+          let changes = this.selectedCellsLinkFlat.map(item => {
+            let change = [item.id, item.self.val, '']
+            item.self.val = ''
+            return change
+          })
+          this.addEvent(['change', changes])
+        }
+      }
+
       // handle ctrl key
+      if (event.key === 'z' && event.ctrlKey) {
+        this.undo()
+      }
+      
+      if (event.key === 'y' && event.ctrlKey) {
+        this.redo()
+      }
+
 
       if (event.ctrlKey) {
+        
+        if (event.key === 'i') {
+          this.insertRow()
+          return
+        }
+
         let selectedData = !this.rangeSelected ? [[this.selInfo.focus.val]] : this.rows.filter(row => {
           return row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).length
         }).map(row => row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).map(cell => cell.val))
@@ -125,21 +287,58 @@ export default {
           window.setTimeout(() => {
             let dataToPaste = parseArrayString(this.$refs.dummy.value)
             
-            let pointer = this.selectedCellsLinkFlat[0]
+            let pointer = this.rangeSelected ?
+              this.selectedCellsLinkFlat[0] : this.cellLinksByCellIdMap[this.selInfo.origin.id]
+            
+            // Check if we shoud repeate data on selected paste area
+            if (this.rangeSelected) {
 
-            dataToPaste.forEach((row) => {
-              let rowOriginId = pointer.self.id
-              row.forEach((val) => {
-                pointer.self.val = val
-                if (pointer.right.id) {
-                  pointer = this.cellLinksByCellIdMap[pointer.right.id]
-                }
+              let pasteHeigth = this.rangeSelected ?
+                this.selectionRangeCoords.endy - this.selectionRangeCoords.starty + 1 :
+                1
+
+              let pasteWidth = this.rangeSelected ?
+                this.selectionRangeCoords.endx - this.selectionRangeCoords.startx + 1 :
+                1
+
+              let widthRepeat = Math.floor(pasteWidth/dataToPaste[0].length)
+              let heigthRepeat = Math.floor(pasteHeigth/dataToPaste.length)
+              
+              // repeat cell inside rows
+              dataToPaste = dataToPaste.map((row) => {
+                return new Array(row.length * widthRepeat).fill(undefined).map((_,i) => row[i%row.length])
               })
+
+              // repeat rows
+              dataToPaste = new Array(dataToPaste.length * heigthRepeat).fill(undefined).map((_,i) => dataToPaste[i%dataToPaste.length])              
+            }
+
+            // iterate over data to set values
+            this.selInfo.focus = pointer.self
+            this.selInfo.origin = pointer.self
+            let changes = dataToPaste.map(row => {
+              if (!pointer) return
+              let rowOriginId = pointer.self.id
+              let rowChanges = row.map(val => {
+                if (!pointer) return
+                let change = [pointer.self.id, pointer.self.val, val]
+                pointer.self.val = val
+
+                // paint the pasted cells
+                this.selInfo.end = pointer.self
+                
+                pointer = this.cellLinksByCellIdMap[pointer.right.id]
+                return change
+              })
+              pointer = undefined
               if (this.cellLinksByCellIdMap[rowOriginId].bottom.id) {
                 let bottomId = this.cellLinksByCellIdMap[rowOriginId].bottom.id
                 pointer = this.cellLinksByCellIdMap[bottomId]
               }
-            })
+              return rowChanges
+            }).flat().filter(Boolean)
+            console.log(changes)
+            this.addEvent(['change', changes])
 
           }, 80)
         }
@@ -313,9 +512,12 @@ export default {
       }
 
       if (event.type === "mousedown") {
-
         // stop editing only if mousedown on other cell
-        if (this.editingCell.id && event.target === this.$refs[this.selInfo.focus.id]) return
+        if (this.editingCell.id && event.target === this.$refs[this.selInfo.focus.id]) {
+          return
+        }
+        
+        this.editingCell = {id: undefined}
         
         if (event.timeStamp - this.mousedownTimeStamp <= 300) {
           this.mousedownTimeStamp = -Infinity
@@ -349,26 +551,24 @@ export default {
           this.$refs.dummy.focus()
         }
       }
-
-    },
-    stopCellEdit (cell) {
-      if (this.editingCell.id === cell.id) {
-        this.editingCell = {id: undefined}
-      }
-    },
+    }
   },
   computed: {
+    cols () {
+      return this.schema.cols.map(col => col.name)
+    },
     rangeSelected () {
       if (!this.selInfo.end.id) return false
       return this.selInfo.origin.id !== this.selInfo.end.id
     },
     selectionRangeCoords () {
       if (!this.selInfo.origin.id || !this.selInfo.end.id) {
+        let focus = this.cellLinksByCellIdMap[this.selInfo.focus.id]
         return {
-          startx: 0,
-          starty: 0,
-          endx: this.rows[0].cells.length,
-          endy: this.rows.length,
+          startx: focus.cell_i,
+          starty: focus.row_i,
+          endx: focus.cell_i,
+          endy: focus.row_i,
         }
       }
 
@@ -412,7 +612,7 @@ export default {
             bottom: row_i < this.rows.length -1 ?   this.rows[row_i+1].cells[cell_i]  : {id: undefined},
           })
         )
-      ).flat()
+      )
     },
     cellLinksArrayFlat () {
       return this.cellLinksArray.flat()
@@ -427,7 +627,10 @@ export default {
     }
   },
   data () {
+    
     return {
+      eventIndex: 0,
+      events: [],
       mousedownTimeStamp: -Infinity,
       f2Bool: false,
       editingCell: {id: undefined},
@@ -437,60 +640,13 @@ export default {
         focus: {id: undefined},
         end: {id: undefined},
       },
-      rows: [
-        {
-          id: '123',
-          cells: [
-            {
-              id: '1',
-              val: 'a'
-            },
-            {
-              id: '2',
-              val: 'b'
-            },
-            {
-              id: '3',
-              val: 'bk'
-            }
-
-          ]
-        },
-        {
-          id: '456',
-          cells: [
-            {
-              id: '4',
-              val: 'c'
-            },
-            {
-              id: '5',
-              val: 'd'
-            },
-            {
-              id: '6',
-              val: 'dx'
-            }
-          ]
-        },
-        {
-          id: '789',
-          cells: [
-            {
-              id: '7',
-              val: 'c'
-            },
-            {
-              id: '8',
-              val: 'd'
-            },
-            {
-              id: '9',
-              val: 'dx'
-            }
-          ]
-        },
-      ]
+      rows: []
+      // rows: [
+      //   {
+      //     id: '123',
+      //     cells: [{id: 'a', val: ''}]
+      //   }
+      // ]
     }
   }
 }
