@@ -54,26 +54,36 @@ export default {
     schema: Object
   },
   watch: {
-    cols: function (val) {
-      console.log(val)
+    cols: function () {
+      this.$nextTick(() => {
+        console.log(this.insertCols())
+      })
     }
   },
   mounted () {
-    console.log(this.cols)
-    console.log(this.schema)
+    this.insertRow(0)
   },
   methods: {
-    insertRow () {
+    insertCols () {
+      return this.rows.map(row => 
+        this.cols.filter(colName => 
+          row.cells.map(cell => cell.col).indexOf(colName) === -1
+        )
+        .map(colName => [''+Math.random(), colName])
+      ).flat()
+    },
+    insertRow (pos) {
       let rowsDoAdd = 1
       let newData = new Array(rowsDoAdd).fill().map(() => Object({
         id: ''+Math.random(),
-        cells: new Array(this.cols.length).fill().map(() => Object({
+        cells: new Array(this.cols.length).fill().map( (_, i) => Object({
           id: ''+Math.random(),
           val: '',
+          col: this.cols[i],
         }))
       }))
       
-      let start = this.selectionRangeCoords.starty
+      let start = pos !== undefined ? pos : this.selectionRangeCoords.starty
       this.rows.splice(
         start,
         0,

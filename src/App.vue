@@ -15,6 +15,11 @@ export default {
   components: {
     HelloWorld
   },
+  mounted () {
+    window.setTimeout(() => {
+      this.cols += ',C,D'
+    }, 2000)
+  },
   data () {
     return {
       cols: 'A,B'
