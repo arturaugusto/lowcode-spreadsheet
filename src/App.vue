@@ -2,7 +2,9 @@
   <section class="section">
     <input v-model="cols">
     <div class="container">
-      <HelloWorld :schema="{'cols': cols.split(',').map((x) => Object({name: x}))}"/>
+      <HelloWorld :schema="{
+        'cols': cols.split(',').map((x) => Object({name: x}))
+      }"/>
     </div>
   </section>
 </template>

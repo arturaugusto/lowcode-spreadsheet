@@ -1,5 +1,10 @@
 <template>
   <div>
+
+    <div>
+      {{rows}}
+    </div>
+    <br>
     <div class="columns is-mobile" v-for="row in rows" :key="row.id">
       <div
         v-bind:class="
@@ -55,9 +60,9 @@ export default {
   },
   watch: {
     cols: function () {
-      this.$nextTick(() => {
-        console.log(this.insertCols())
-      })
+      let insertColsEvent = this.insertCols()
+      this.events.push(insertColsEvent)
+      this.redo()
     }
   },
   mounted () {
@@ -65,12 +70,17 @@ export default {
   },
   methods: {
     insertCols () {
-      return this.rows.map(row => 
+      let cols = this.rows.map(row => 
         this.cols.filter(colName => 
           row.cells.map(cell => cell.col).indexOf(colName) === -1
         )
-        .map(colName => [''+Math.random(), colName])
+        .map(colName => [row.id, ''+Math.random(),colName])
       ).flat()
+      
+      return {
+        "id": new Date().toISOString(),
+        "e": [ "addCol", cols ]
+      }
     },
     insertRow (pos) {
       let rowsDoAdd = 1
@@ -91,12 +101,11 @@ export default {
       )
 
       this.addEvent(['splice', start, 0, newData])
-
-
     },
     redo () {
       if (this.eventIndex === this.events.length) return
       let event = this.events[this.eventIndex].e
+
       if (event[0] === 'change') {
         event[1].forEach(item => {
           let cell = this.cellLinksByCellIdMap[item[0]].self
@@ -108,11 +117,21 @@ export default {
         this.rows.splice(event[1], 0, ...event[3])
       }
 
+      if (event[0] === 'addCol') {
+        event[1].forEach(item => {
+          let rowMatch = this.rows.filter(row => row.id === item[0])[0]
+          if (rowMatch) {
+            rowMatch.cells.push({id: item[1], col: item[2]})
+          }
+        })
+      }
+
+
       this.eventIndex = this.eventIndex + 1
       
     },
     undo () {
-      if (this.eventIndex === 0) return
+      if (this.eventIndex <= 1) return
       let event = this.events[this.eventIndex - 1].e
       if (event[0] === 'change') {
         event[1].forEach(item => {
@@ -123,6 +142,15 @@ export default {
 
       if (event[0] === 'splice') {
         this.rows.splice(event[1], event[3].length)
+      }
+
+      if (event[0] === 'addCol') {
+        event[1].forEach(item => {
+          let rowMatch = this.rows.filter(row => row.id === item[0])[0]
+          if (rowMatch) {
+            rowMatch.cells = rowMatch.cells.filter(cell => cell.col !== item[2])
+          }
+        })
       }
 
       this.eventIndex = this.eventIndex - 1
@@ -526,7 +554,13 @@ export default {
         if (this.editingCell.id && event.target === this.$refs[this.selInfo.focus.id]) {
           return
         }
-        
+
+        // when is editing and click on other cell
+        if (this.$refs[this.editingCell.id]) {
+          let inputVal = this.$refs[this.editingCell.id].value
+          this.cellLinksByCellIdMap[this.editingCell.id].self.val = inputVal
+        }
+
         this.editingCell = {id: undefined}
         
         if (event.timeStamp - this.mousedownTimeStamp <= 300) {
