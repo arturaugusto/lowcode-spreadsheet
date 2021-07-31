@@ -35,12 +35,8 @@
     </div>
   </div>
   <br>
-  <textarea @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy" style="position: absolute;"></textarea>
-  <div>{{cols}}</div>
-  <!-- <div>{{selInfo}}</div> -->
-  <!-- <div>{{rangeSelected}}</div> -->
-  <!-- <div>{{rows}}</div> -->
-  <pre>{{events}}</pre>
+  <textarea class="dummy-text-area" @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
+  <!-- <pre>{{events}}</pre> -->
   
   <!-- <div>{{selectRange}}</div> -->
 </template>
@@ -71,6 +67,20 @@ var timeToId = (isoString) => {
 }
 
 
+var cumulativeOffset = function(element) {
+    var top = 0, left = 0;
+    do {
+        top += element.offsetTop  || 0;
+        left += element.offsetLeft || 0;
+        element = element.offsetParent;
+    } while(element);
+
+    return {
+        top: top,
+        left: left
+    };
+};
+
 export default {
   name: 'HelloWorld',
   props: {
@@ -78,23 +88,22 @@ export default {
   },
   watch: {
     'selInfo.focus': function () {
-      var cumulativeOffset = function(element) {
-          var top = 0, left = 0;
-          do {
-              top += element.offsetTop  || 0;
-              left += element.offsetLeft || 0;
-              element = element.offsetParent;
-          } while(element);
-
-          return {
-              top: top,
-              left: left
-          };
-      };
-
       let dummyEl = this.$refs.dummy
       let cellEl = this.$refs[this.selInfo.focus.id+'_cell']
-      dummyEl.style.setProperty('top', cumulativeOffset(cellEl).top)
+      dummyEl.style['top'] = ''+cellEl.offsetTop+'px'
+      dummyEl.focus()
+      
+      let cumulativeOffsetTop = cumulativeOffset(dummyEl).top
+      let diff = cumulativeOffsetTop - window.scrollY
+      if (diff < 0) {
+        window.scrollTo(0, cumulativeOffsetTop)
+      }
+      if (diff > window.innerHeight) {
+        // the 0.8 avoid a glitch when scroll down
+        window.scrollTo(0, cumulativeOffsetTop - window.innerHeight + cellEl.clientHeight*0.8)
+        console.log(cellEl.clientHeight)
+      }
+
     },
     cols: function () {
       let event = this.createChangeColsEvent()
@@ -752,4 +761,11 @@ export default {
   .focused-cell {
     background: aqua;
   }
+
+  .dummy-text-area {
+    position: absolute;
+    left: -10000px;
+    z-index: -10;
+  }
+
 </style>
