@@ -1,11 +1,8 @@
 <template>
   <div>
 
-    <div>
-      {{rows}}
-    </div>
     <br>
-    <div class="columns is-mobile" v-for="row in rows" :key="row.id">
+    <div class="columns is-mobile" v-for="row in matrixVisible" :key="row.id">
       <div
         v-bind:class="
           {
@@ -20,6 +17,7 @@
         @mouseup="selectCell($event, cell)"
         v-for="cell in row.cells"
         :key="cell.id"
+        :ref="cell.id+'_cell'"
         >
           <input
             @keydown="cellInputEventHandler($event, cell)"
@@ -37,14 +35,12 @@
     </div>
   </div>
   <br>
-  <textarea @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
+  <textarea @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy" style="position: absolute;"></textarea>
   <div>{{cols}}</div>
   <!-- <div>{{selInfo}}</div> -->
   <!-- <div>{{rangeSelected}}</div> -->
   <!-- <div>{{rows}}</div> -->
-  <div v-for="(event, i) in events" :key="i">
-    {{event}}
-  </div>
+  <pre>{{events}}</pre>
   
   <!-- <div>{{selectRange}}</div> -->
 </template>
@@ -53,79 +49,117 @@
 
 import {parseArrayString, stringifyArray} from "@/vendor/sheetclip.js";
 
+var randStr = (n) => {
+  return new Array(n||10)
+    .fill()
+    .map(() => {
+      let x = (Math.round(Math.random()*35)).toString(36)
+      return Math.random() > 0.5 ? x.toUpperCase() : x }
+    ).join('')
+}
+
+
+var timeToId = (isoString) => {
+  isoString = isoString || new Date().toISOString()
+  let [dt, tz] = isoString.split('.')
+  return dt.replace(/[-T:]+/g, '')
+    .match(/.{2}/g)
+    .map(parseFloat)
+    .map(x => x < 10 ? (x+10).toString(36).toUpperCase() :
+      x <= 25 ? (x+10).toString(36).toUpperCase() : (x-26).toString(36)
+    ).join('') + tz.slice(0,3)
+}
+
+
 export default {
   name: 'HelloWorld',
   props: {
     schema: Object
   },
   watch: {
+    'selInfo.focus': function () {
+      var cumulativeOffset = function(element) {
+          var top = 0, left = 0;
+          do {
+              top += element.offsetTop  || 0;
+              left += element.offsetLeft || 0;
+              element = element.offsetParent;
+          } while(element);
+
+          return {
+              top: top,
+              left: left
+          };
+      };
+
+      let dummyEl = this.$refs.dummy
+      let cellEl = this.$refs[this.selInfo.focus.id+'_cell']
+      dummyEl.style.setProperty('top', cumulativeOffset(cellEl).top)
+    },
     cols: function () {
-      let insertColsEvent = this.insertCols()
-      this.events.push(insertColsEvent)
-      this.redo()
+      let event = this.createChangeColsEvent()
+      this.doEvent(event)
     }
   },
   mounted () {
     this.insertRow(0)
   },
   methods: {
-    insertCols () {
-      let cols = this.rows.map(row => 
-        this.cols.filter(colName => 
-          row.cells.map(cell => cell.col).indexOf(colName) === -1
-        )
-        .map(colName => [row.id, ''+Math.random(),colName])
-      ).flat()
-      
-      return {
-        "id": new Date().toISOString(),
-        "e": [ "addCol", cols ]
+    doChangeCols (item) {
+      let rowMatch = this.rows.filter(row => row.id === item[0])[0]
+      if (rowMatch) {
+        rowMatch.cells.push({id: item[1], col: item[2]})
       }
+    },
+    createChangeColsEvent () {
+      return Object({
+        'changeCols': this.rows.map(row => 
+          this.cols.filter(colName => 
+            row.cells.map(cell => cell.col).indexOf(colName) === -1
+          )
+          .map(colName => [row.id, randStr(8), colName])
+        ).flat()
+      })
     },
     insertRow (pos) {
       let rowsDoAdd = 1
       let newData = new Array(rowsDoAdd).fill().map(() => Object({
-        id: ''+Math.random(),
-        cells: new Array(this.cols.length).fill().map( (_, i) => Object({
-          id: ''+Math.random(),
-          val: '',
-          col: this.cols[i],
-        }))
+        id: randStr(8),
+        cells: [],
       }))
       
       let start = pos !== undefined ? pos : this.selectionRangeCoords.starty
-      this.rows.splice(
-        start,
-        0,
-        ...newData
-      )
+      
+      let insertRowEvent = {'splice': [start, 0, newData]}
+      this.doEvent(insertRowEvent)
 
-      this.addEvent(['splice', start, 0, newData])
+      let changeColsEvent = this.createChangeColsEvent()
+      this.doEvent(changeColsEvent)
+
+      let event = Object.assign(insertRowEvent, changeColsEvent)
+      this.addEvent(event)
     },
-    redo () {
-      if (this.eventIndex === this.events.length) return
-      let event = this.events[this.eventIndex].e
-
-      if (event[0] === 'change') {
-        event[1].forEach(item => {
+    doEvent (event) {
+      if (event['change']) {
+        event['change'].forEach(item => {
           let cell = this.cellLinksByCellIdMap[item[0]].self
           cell.val = item[2]
         })
       }
 
-      if (event[0] === 'splice') {
-        this.rows.splice(event[1], 0, ...event[3])
+      if (event['splice']) {
+        this.rows.splice(event['splice'][0], 0, ...event['splice'][2])
       }
 
-      if (event[0] === 'addCol') {
-        event[1].forEach(item => {
-          let rowMatch = this.rows.filter(row => row.id === item[0])[0]
-          if (rowMatch) {
-            rowMatch.cells.push({id: item[1], col: item[2]})
-          }
-        })
+      if (event['changeCols']) {
+        event['changeCols'].forEach(this.doChangeCols)
       }
+    },
+    redo () {
+      if (this.eventIndex === this.events.length) return
+      let event = this.events[this.eventIndex].e
 
+      this.doEvent(event)
 
       this.eventIndex = this.eventIndex + 1
       
@@ -133,38 +167,42 @@ export default {
     undo () {
       if (this.eventIndex <= 1) return
       let event = this.events[this.eventIndex - 1].e
-      if (event[0] === 'change') {
-        event[1].forEach(item => {
+      if (event['change']) {
+        event['change'].forEach(item => {
           let cell = this.cellLinksByCellIdMap[item[0]].self
           cell.val = item[1]
         })
       }
 
-      if (event[0] === 'splice') {
-        this.rows.splice(event[1], event[3].length)
+      if (event['splice']) {
+        this.rows.splice(event['splice'][0], event['splice'][2].length)
       }
 
-      if (event[0] === 'addCol') {
-        event[1].forEach(item => {
+      if (event['changeCols']) {
+        event['changeCols'].forEach(item => {
           let rowMatch = this.rows.filter(row => row.id === item[0])[0]
           if (rowMatch) {
             rowMatch.cells = rowMatch.cells.filter(cell => cell.col !== item[2])
           }
         })
+        this.rows = this.rows.filter(row => row.cells.length)
+        if (!this.rows.length) {
+          this.redo()
+        }
       }
 
       this.eventIndex = this.eventIndex - 1
     },
     addEvent (event) {
       this.events.splice(this.eventIndex)
-      this.events.push({id: new Date().toISOString(), e: event})
+      this.events.push({id: timeToId()+randStr(2), e: event})
       this.eventIndex = this.events.length
     },
     startEditingCell (cell) {
       this.editingCell = cell
       this.editingCellBackup = JSON.parse(JSON.stringify(this.editingCell))
       this.$nextTick(() => {
-        this.$refs[cell.id].value = cell.val
+        this.$refs[cell.id].value = cell.val||''
         this.$refs[cell.id].focus()
       })
     },
@@ -191,7 +229,7 @@ export default {
         if (this.editingCell.id === cell.id) {
           cell.val = event.target.value
           if (event.target.value !== this.editingCellBackup.val) {
-            this.addEvent(['change', [[this.editingCell.id, this.editingCellBackup.val, event.target.value]]])
+            this.addEvent({'change': [[this.editingCell.id, this.editingCellBackup.val, event.target.value]]})
           }
           this.editingCell = {id: undefined}
         }
@@ -219,26 +257,34 @@ export default {
       this.f2Bool = event.key === 'F2' || this.f2Bool
 
       // range select
-      if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].indexOf(event.key) !== -1) {
-        if (event.ctrlKey) {
+
+      if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home'].indexOf(event.key) !== -1) {
+        if (event.ctrlKey || event.key === 'Home') {
 
           let originCell = this.rangeSelected ? this.selInfo.end : this.selInfo.focus
           for (var i = 0; i < 10000; i++) {
             let candidateCell = {id: undefined}
 
-            if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByCellIdMap[originCell.id].top     }
-            if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByCellIdMap[originCell.id].bottom  }
-            if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByCellIdMap[originCell.id].left    }
-            if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByCellIdMap[originCell.id].right   }
+            if (event.key === 'ArrowUp') 
+              {candidateCell = this.cellLinksByCellIdMap[originCell.id].top     }
+            if (event.key === 'ArrowDown')
+              {candidateCell = this.cellLinksByCellIdMap[originCell.id].bottom  }
+            if (event.key === 'ArrowLeft' || event.key === 'Home')
+              {candidateCell = this.cellLinksByCellIdMap[originCell.id].left    }
+            if (event.key === 'ArrowRight')
+              {candidateCell = this.cellLinksByCellIdMap[originCell.id].right   }
             
             if (candidateCell.id) {
-              if (candidateCell.val && !originCell.val) {
-                originCell = candidateCell
-                break
-              }
+              
+              if (event.key !== 'Home') {
+                if (candidateCell.val && !originCell.val) {
+                  originCell = candidateCell
+                  break
+                }
 
-              if (!candidateCell.val && originCell.val && i !== 0) {
-                break
+                if (!candidateCell.val && originCell.val && i !== 0) {
+                  break
+                }
               }
 
               originCell = candidateCell
@@ -254,24 +300,20 @@ export default {
             this.selInfo.origin = originCell
           }
           return
-          // this.selInfo.end = candidateCell
-          // this.selInfo.focus = candidateCell
-          // this.selInfo.end = this.selInfo.focus
-
-          
-
-
-          // this.selInfo.origin = this.selInfo.focus
         }
 
         if (event.shiftKey) {
           let extendOriginCell = this.selInfo.end.id ? this.selInfo.end : cellLinks.self
           let candidateCell = {id: undefined}
 
-          if (event.key === 'ArrowUp')    {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top     }
-          if (event.key === 'ArrowDown')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom  }
-          if (event.key === 'ArrowLeft')  {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left    }
-          if (event.key === 'ArrowRight') {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right   }
+          if (event.key === 'ArrowUp')
+            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top}
+          if (event.key === 'ArrowDown')
+            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom}
+          if (event.key === 'ArrowLeft' || event.key === 'Home')
+            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left}
+          if (event.key === 'ArrowRight')
+            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right}
           
           this.selInfo.end = candidateCell.id ? candidateCell : this.selInfo.end
 
@@ -284,7 +326,7 @@ export default {
       // handle delete
       if (event.key === 'Delete' || event.key === 'Backspace') {
         if (!this.rangeSelected) {
-          this.addEvent(['change', [[this.selInfo.focus.id, this.selInfo.focus.val, '']]])
+          this.addEvent({'change': [[this.selInfo.focus.id, this.selInfo.focus.val, '']]})
           this.selInfo.focus.val = ''
         } else {
           let changes = this.selectedCellsLinkFlat.map(item => {
@@ -292,7 +334,7 @@ export default {
             item.self.val = ''
             return change
           })
-          this.addEvent(['change', changes])
+          this.addEvent({'change': changes})
         }
       }
 
@@ -305,7 +347,6 @@ export default {
         this.redo()
       }
 
-
       if (event.ctrlKey) {
         
         if (event.key === 'i') {
@@ -313,7 +354,7 @@ export default {
           return
         }
 
-        let selectedData = !this.rangeSelected ? [[this.selInfo.focus.val]] : this.rows.filter(row => {
+        let selectedData = !this.rangeSelected ? [[this.selInfo.focus.val]] : this.matrixVisible.filter(row => {
           return row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).length
         }).map(row => row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).map(cell => cell.val))
 
@@ -375,8 +416,7 @@ export default {
               }
               return rowChanges
             }).flat().filter(Boolean)
-            console.log(changes)
-            this.addEvent(['change', changes])
+            this.addEvent({'change': changes})
 
           }, 80)
         }
@@ -601,6 +641,12 @@ export default {
     cols () {
       return this.schema.cols.map(col => col.name)
     },
+    matrixVisible () {
+      return this.rows.map(row => Object({
+        cells: this.cols.map(col => row.cells.filter(x => col === x.col)[0]),
+        id: row.id
+      }))
+    },
     rangeSelected () {
       if (!this.selInfo.end.id) return false
       return this.selInfo.origin.id !== this.selInfo.end.id
@@ -643,7 +689,7 @@ export default {
       }).reduce((a, c) => (a[c.id]=true)&&a, {})
     },
     cellLinksArray () {
-      return this.rows.map((row, row_i) => 
+      return this.matrixVisible.map((row, row_i) => 
         row.cells.map((cell, cell_i) => 
           Object({
             id:     cell.id,
@@ -652,8 +698,8 @@ export default {
             self:  cell,
             left:   cell_i ?                        row.cells[cell_i-1]               : {id: undefined},
             right:  cell_i < row.cells.length -1 ?  row.cells[cell_i+1]               : {id: undefined},
-            top:    row_i ?                         this.rows[row_i-1].cells[cell_i]  : {id: undefined},
-            bottom: row_i < this.rows.length -1 ?   this.rows[row_i+1].cells[cell_i]  : {id: undefined},
+            top:    row_i ?                         this.matrixVisible[row_i-1].cells[cell_i]  : {id: undefined},
+            bottom: row_i < this.matrixVisible.length -1 ?   this.matrixVisible[row_i+1].cells[cell_i]  : {id: undefined},
           })
         )
       )
