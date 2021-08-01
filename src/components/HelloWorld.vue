@@ -36,6 +36,8 @@
   </div>
   <br>
   <textarea class="dummy-text-area" @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
+  <textarea ref="blah"></textarea>
+  <div>rangeSelected: {{rangeSelected}}</div>
   <!-- <pre>{{events}}</pre> -->
   
   <!-- <div>{{selectRange}}</div> -->
@@ -84,7 +86,8 @@ var cumulativeOffset = function(element) {
 export default {
   name: 'HelloWorld',
   props: {
-    schema: Object
+    schema: Object,
+    initEvents: Array,
   },
   watch: {
     'selInfo.focus': function () {
@@ -101,7 +104,6 @@ export default {
       if (diff > window.innerHeight) {
         // the 0.8 avoid a glitch when scroll down
         window.scrollTo(0, cumulativeOffsetTop - window.innerHeight + cellEl.clientHeight*0.8)
-        console.log(cellEl.clientHeight)
       }
 
     },
@@ -110,8 +112,18 @@ export default {
       this.doEvent(event)
     }
   },
+  created () {
+    
+  },
   mounted () {
-    this.insertRow(0)
+    if (this.initEvents && this.initEvents.length) {
+      this.events = this.initEvents
+      this.events.forEach(() => {
+        this.redo()
+      })
+    } else {
+      this.insertRow(0)
+    }
   },
   methods: {
     doChangeCols (item) {
@@ -205,6 +217,8 @@ export default {
     addEvent (event) {
       this.events.splice(this.eventIndex)
       this.events.push({id: timeToId()+randStr(2), e: event})
+      // this.$refs['blah'].value = JSON.stringify(this.events)
+      // console.log(this.events)
       this.eventIndex = this.events.length
     },
     startEditingCell (cell) {
@@ -266,11 +280,15 @@ export default {
       this.f2Bool = event.key === 'F2' || this.f2Bool
 
       // range select
-
       if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home'].indexOf(event.key) !== -1) {
-        if (event.ctrlKey || event.key === 'Home') {
+        let originCell
+        if (event.shiftKey) {
+          originCell = this.rangeSelected ? this.selInfo.end : this.selInfo.focus
+        } else {
+          originCell = this.selInfo.focus
+        }
 
-          let originCell = this.rangeSelected ? this.selInfo.end : this.selInfo.focus
+        if (event.ctrlKey || event.key === 'Home') {
           for (var i = 0; i < 10000; i++) {
             let candidateCell = {id: undefined}
 
@@ -294,7 +312,9 @@ export default {
                 if (!candidateCell.val && originCell.val && i !== 0) {
                   break
                 }
+
               }
+
 
               originCell = candidateCell
             } else break
@@ -674,11 +694,17 @@ export default {
       let originCellLinks = this.cellLinksByCellIdMap[this.selInfo.origin.id]
       let endCellLinks = this.cellLinksByCellIdMap[this.selInfo.end.id]
 
-      let startx = Math.min(originCellLinks.cell_i, endCellLinks.cell_i)
-      let endx = Math.max(originCellLinks.cell_i, endCellLinks.cell_i)
+      let startx, endx, starty, endy
+      if (!originCellLinks || !endCellLinks) {
+        startx = 0
+        endx = 0
+      } else {
+        startx = Math.min(originCellLinks.cell_i, endCellLinks.cell_i)
+        endx = Math.max(originCellLinks.cell_i, endCellLinks.cell_i)
 
-      let starty = Math.min(originCellLinks.row_i, endCellLinks.row_i)
-      let endy = Math.max(originCellLinks.row_i, endCellLinks.row_i)
+        starty = Math.min(originCellLinks.row_i, endCellLinks.row_i)
+        endy = Math.max(originCellLinks.row_i, endCellLinks.row_i)
+      }
       
       return {
         startx: startx,
