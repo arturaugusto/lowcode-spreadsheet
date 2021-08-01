@@ -1,16 +1,12 @@
 <template>
   <div>
-
-    <br>
-    <div class="columns is-mobile" v-for="row in matrixVisible" :key="row.id">
+    <div class="columns is-mobile" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
       <div
-        v-bind:class="
-          {
-            'focused-cell': selInfo.focus.id === cell.id,
-            'selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
-            
-          }"
-        class="column is-2 is-gapless p-0"
+        v-bind:class="{
+          'focused-cell': selInfo.focus.id === cell.id,
+          'selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
+        }"
+        class="column is-gapless p-0 ss-cell"
         @click="selectCell($event, cell)"
         @mousedown="selectCell($event, cell)"
         @mousemove="selectCell($event, cell)"
@@ -18,28 +14,24 @@
         v-for="cell in row.cells"
         :key="cell.id"
         :ref="cell.id+'_cell'"
+      >
+        <input
+          @keydown="cellInputEventHandler($event, cell)"
+          v-if="editingCell.id === cell.id"
+          class="cell-input"
+          :ref="cell.id"
         >
-          <input
-            @keydown="cellInputEventHandler($event, cell)"
-            v-if="editingCell.id === cell.id"
-            class="cell-input"
-            :ref="cell.id"
-          >
-            <!-- @blur="stopCellEdit($event, cell)" -->
-          <span
-            @keydown="cellKeyDownHandler($event, cell)"
-            v-else>{{cell.val}}
-            <br>
-          </span>
+          <!-- @blur="stopCellEdit($event, cell)" -->
+        <div
+          @keydown="cellKeyDownHandler($event, cell)"
+          v-else>{{cell.val}}
+        </div>
       </div>
     </div>
   </div>
-  <br>
   <textarea class="dummy-text-area" @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
-  <textarea ref="blah"></textarea>
-  <div>rangeSelected: {{rangeSelected}}</div>
+  <!-- <textarea ref="blah"></textarea> -->
   <!-- <pre>{{events}}</pre> -->
-  
   <!-- <div>{{selectRange}}</div> -->
 </template>
 
@@ -167,11 +159,9 @@ export default {
           cell.val = item[2]
         })
       }
-
       if (event['splice']) {
         this.rows.splice(event['splice'][0], 0, ...event['splice'][2])
       }
-
       if (event['changeCols']) {
         event['changeCols'].forEach(this.doChangeCols)
       }
@@ -179,11 +169,8 @@ export default {
     redo () {
       if (this.eventIndex === this.events.length) return
       let event = this.events[this.eventIndex].e
-
       this.doEvent(event)
-
       this.eventIndex = this.eventIndex + 1
-      
     },
     undo () {
       if (this.eventIndex <= 1) return
@@ -289,33 +276,31 @@ export default {
         }
 
         if (event.ctrlKey || event.key === 'Home') {
-          for (var i = 0; i < 10000; i++) {
+          for (var i = 0; i < 1000; i++) {
             let candidateCell = {id: undefined}
 
-            if (event.key === 'ArrowUp') 
-              {candidateCell = this.cellLinksByCellIdMap[originCell.id].top     }
-            if (event.key === 'ArrowDown')
-              {candidateCell = this.cellLinksByCellIdMap[originCell.id].bottom  }
-            if (event.key === 'ArrowLeft' || event.key === 'Home')
-              {candidateCell = this.cellLinksByCellIdMap[originCell.id].left    }
-            if (event.key === 'ArrowRight')
-              {candidateCell = this.cellLinksByCellIdMap[originCell.id].right   }
-            
+            if (event.key === 'ArrowUp') {
+              candidateCell = this.cellLinksByCellIdMap[originCell.id].top
+            }
+            if (event.key === 'ArrowDown') {
+              candidateCell = this.cellLinksByCellIdMap[originCell.id].bottom
+            }
+            if (event.key === 'ArrowLeft' || event.key === 'Home') {
+              candidateCell = this.cellLinksByCellIdMap[originCell.id].left
+            }
+            if (event.key === 'ArrowRight') {
+              candidateCell = this.cellLinksByCellIdMap[originCell.id].right
+            }
             if (candidateCell.id) {
-              
               if (event.key !== 'Home') {
                 if (candidateCell.val && !originCell.val) {
                   originCell = candidateCell
                   break
                 }
-
                 if (!candidateCell.val && originCell.val && i !== 0) {
                   break
                 }
-
               }
-
-
               originCell = candidateCell
             } else break
 
@@ -335,17 +320,19 @@ export default {
           let extendOriginCell = this.selInfo.end.id ? this.selInfo.end : cellLinks.self
           let candidateCell = {id: undefined}
 
-          if (event.key === 'ArrowUp')
-            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top}
-          if (event.key === 'ArrowDown')
-            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom}
-          if (event.key === 'ArrowLeft' || event.key === 'Home')
-            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left}
-          if (event.key === 'ArrowRight')
-            {candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right}
-          
+          if (event.key === 'ArrowUp') {
+            candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].top
+          }
+          if (event.key === 'ArrowDown') {
+            candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].bottom
+          }
+          if (event.key === 'ArrowLeft' || event.key === 'Home') {
+            candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].left
+          }
+          if (event.key === 'ArrowRight') {
+            candidateCell = this.cellLinksByCellIdMap[extendOriginCell.id].right
+          }
           this.selInfo.end = candidateCell.id ? candidateCell : this.selInfo.end
-
           return
         } else {
           this.selInfo.end = {id: undefined}
@@ -383,11 +370,18 @@ export default {
           return
         }
 
-        let selectedData = !this.rangeSelected ? [[this.selInfo.focus.val]] : this.matrixVisible.filter(row => {
-          return row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).length
-        }).map(row => row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).map(cell => cell.val))
+        let selectedData = !this.rangeSelected ?
+          [[this.selInfo.focus.val]] :
+          this.matrixVisible.filter(row => {
+            return row.cells.filter(cell => this.selectRangeCellsIdsMap[cell.id]).length
+          })
+          .map(row => row.cells.
+            filter(cell => this.selectRangeCellsIdsMap[cell.id])
+            .map(cell => cell.val)
+          )
 
         this.$refs.dummy.value = stringifyArray(selectedData)
+        
         // when user press ctrl+c, will copy selected text
         this.$refs.dummy.select()
 
@@ -402,12 +396,10 @@ export default {
             if (this.rangeSelected) {
 
               let pasteHeigth = this.rangeSelected ?
-                this.selectionRangeCoords.endy - this.selectionRangeCoords.starty + 1 :
-                1
+                this.selectionRangeCoords.endy - this.selectionRangeCoords.starty + 1 : 1
 
               let pasteWidth = this.rangeSelected ?
-                this.selectionRangeCoords.endx - this.selectionRangeCoords.startx + 1 :
-                1
+                this.selectionRangeCoords.endx - this.selectionRangeCoords.startx + 1 : 1
 
               let widthRepeat = Math.floor(pasteWidth/dataToPaste[0].length)
               let heigthRepeat = Math.floor(pasteHeigth/dataToPaste.length)
@@ -669,12 +661,39 @@ export default {
   computed: {
     cols () {
       return this.schema.cols.map(col => col.name)
+        .concat(this.rows.map(row => row.cells.map(cell => cell.col)))
+        .flat()
+        .reduce((a, c) => a.indexOf(c) !== -1 ? a : a.push(c)&&a, [])
     },
     matrixVisible () {
-      return this.rows.map(row => Object({
-        cells: this.cols.map(col => row.cells.filter(x => col === x.col)[0]),
-        id: row.id
-      }))
+      return this.rows.map((row, row_i) => {
+        let cells = this.cols.map(col => row.cells
+          .filter(x => col === x.col)
+          .sort((a, b) => b.id.localeCompare(a.id))[0] // get cell with last id
+        )
+        
+        // create el class based on data
+        let elClassMap = cells.reduce((a, c) => {
+          a['ss-row-has-'+c.col+'-data'] = Boolean(c.val)
+          // a[c.col]=c.val
+          return a
+        }, {})
+
+
+        return Object({
+          cells: cells,
+          id: row.id,
+          class: Object.assign({
+            'ss-row': true,
+            'ss-first-row': row_i === 0,
+            'ss-last-row': row_i === this.rows.length - 1,
+            'ss-has-data': cells.map(cell => cell.val).filter(Boolean).reduce((a, c) => a || c, false),
+
+          }, elClassMap)
+        })
+
+
+      })
     },
     rangeSelected () {
       if (!this.selInfo.end.id) return false
@@ -752,7 +771,6 @@ export default {
     }
   },
   data () {
-    
     return {
       eventIndex: 0,
       events: [],
@@ -766,12 +784,6 @@ export default {
         end: {id: undefined},
       },
       rows: []
-      // rows: [
-      //   {
-      //     id: '123',
-      //     cells: [{id: 'a', val: ''}]
-      //   }
-      // ]
     }
   }
 }
