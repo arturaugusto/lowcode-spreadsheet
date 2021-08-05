@@ -2,7 +2,7 @@
   <section class="section">
     <div class="container">
       <HelloWorld
-        :schema="{'cols': cols.split(',').map((x) => Object({name: x}))}"
+        :schema="{'cols': cols.split(',').map((x) => Object({name: x, type: x === 'A' ? 'list' : 'string'}))}"
         :initEvents="events"
       />
     </div>
@@ -18,9 +18,9 @@ export default {
     HelloWorld
   },
   mounted () {
-    window.setTimeout(() => {
-      this.cols += ',C,E'
-    }, 2000)
+    // window.setTimeout(() => {
+    //   this.cols += ',C,E'
+    // }, 2000)
   },
   data () {
     return {
@@ -36,24 +36,20 @@ export default {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
   color: #2c3e50;
   margin-top: 60px;
 }
 
-.ss-cell {
-  /*min-width: 30%;*/
-  height: 30px;
-  border-top:1px solid black;
-  border-left:1px solid black;
+.ss-cell-blur {
+  text-align: right;
 }
 
-.ss-last-row {
-  border-bottom:1px solid black;
+.ss-selected-cell {
+  background: #a0c3e26e;
 }
-
-.ss-row-has-A-data {
-
-}
+/*.ss-cell-input {
+  width: 100%;
+  height: 100%;
+}*/
 
 </style>

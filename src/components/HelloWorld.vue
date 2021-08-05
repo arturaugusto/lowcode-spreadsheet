@@ -1,34 +1,47 @@
 <template>
-  <div>
-    <div class="columns is-mobile" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
-      <div
-        v-bind:class="{
-          'focused-cell': selInfo.focus.id === cell.id,
-          'selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
-        }"
-        class="column is-gapless p-0 ss-cell"
-        @click="selectCell($event, cell)"
-        @mousedown="selectCell($event, cell)"
-        @mousemove="selectCell($event, cell)"
-        @mouseup="selectCell($event, cell)"
-        v-for="cell in row.cells"
-        :key="cell.id"
-        :ref="cell.id+'_cell'"
-      >
-        <input
-          @keydown="cellInputEventHandler($event, cell)"
-          v-if="editingCell.id === cell.id"
-          class="cell-input"
-          :ref="cell.id"
+  {{colSchemaMap}}
+  <table>
+    <tbody>
+      <tr class="" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
+        <td
+          v-bind:class="{
+            'ss-focused-cell': selInfo.focus.id === cell.id,
+            'ss-selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
+          }"
+          class="ss-cell"
+          @click="selectCell($event, cell)"
+          @mousedown="selectCell($event, cell)"
+          @mousemove="selectCell($event, cell)"
+          @mouseup="selectCell($event, cell)"
+          v-for="cell in row.cells"
+          :key="cell.id"
+          :ref="cell.id+'_td'"
         >
-          <!-- @blur="stopCellEdit($event, cell)" -->
-        <div
-          @keydown="cellKeyDownHandler($event, cell)"
-          v-else>{{cell.val}}
-        </div>
-      </div>
-    </div>
-  </div>
+          <input
+            @keydown="cellInputEventHandler($event, cell)"
+            v-if="editingCell.id === cell.id && colSchemaMap[cell.col].type === 'string'"
+            :ref="cell.id"
+            class="ss-cell-input"
+          >
+          <select 
+            v-else-if="editingCell.id === cell.id && colSchemaMap[cell.col].type === 'list'"
+            :ref="cell.id"
+            class="ss-cell-select"
+          >
+            <option value="" disabled selected>Please select one</option>
+            <option>A</option>
+            <option>B</option>
+            <option>C</option>
+          </select>
+          <div
+            class="ss-cell-blur"
+            @keydown="cellKeyDownHandler($event, cell)"
+            v-else>{{cell.val}}
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
   <textarea class="dummy-text-area" @keydown="cellKeyDownHandler($event, {id: undefined})" ref="dummy"></textarea>
   <!-- <textarea ref="blah"></textarea> -->
   <!-- <pre>{{events}}</pre> -->
@@ -84,7 +97,7 @@ export default {
   watch: {
     'selInfo.focus': function () {
       let dummyEl = this.$refs.dummy
-      let cellEl = this.$refs[this.selInfo.focus.id+'_cell']
+      let cellEl = this.$refs[this.selInfo.focus.id+'_td']
       dummyEl.style['top'] = ''+cellEl.offsetTop+'px'
       dummyEl.focus()
       
@@ -211,9 +224,16 @@ export default {
     startEditingCell (cell) {
       this.editingCell = cell
       this.editingCellBackup = JSON.parse(JSON.stringify(this.editingCell))
+      let tdEl = this.$refs[cell.id+'_td']
+      let rect = tdEl.getBoundingClientRect()
+      let borderWidth = getComputedStyle(tdEl).borderWidth
       this.$nextTick(() => {
-        this.$refs[cell.id].value = cell.val||''
-        this.$refs[cell.id].focus()
+        let inputEl = this.$refs[cell.id]
+        console.log(inputEl)
+        inputEl.style.width = `calc(${rect.width}px - 2 * ${borderWidth})`
+        tdEl.style.width = ''+rect.width+'px'
+        inputEl.focus()
+        inputEl.value = cell.val||''
       })
     },
     cellInputEventHandler (event, cell) {
@@ -659,6 +679,14 @@ export default {
     }
   },
   computed: {
+    colSchemaMap () {
+      return this.cols.reduce((a, c) => {
+        let schema = this.schema.cols.filter(x => x.name === c)[0]||{type: 'string', name: c}
+        a[schema.name] = schema
+        return a
+      }, {})
+      
+    },
     cols () {
       return this.schema.cols.map(col => col.name)
         .concat(this.rows.map(row => row.cells.map(cell => cell.col)))
@@ -679,7 +707,6 @@ export default {
           return a
         }, {})
 
-
         return Object({
           cells: cells,
           id: row.id,
@@ -688,7 +715,6 @@ export default {
             'ss-first-row': row_i === 0,
             'ss-last-row': row_i === this.rows.length - 1,
             'ss-has-data': cells.map(cell => cell.val).filter(Boolean).reduce((a, c) => a || c, false),
-
           }, elClassMap)
         })
 
@@ -790,20 +816,54 @@ export default {
 </script>
 
 <style scoped>
-  .cell-input {
-    width: 100%;
-  }
-  .selected-cell {
-    background: #00ffff69;
-  }
-  .focused-cell {
-    background: aqua;
-  }
-
   .dummy-text-area {
     position: absolute;
     left: -10000px;
     z-index: -10;
   }
+
+
+table{
+  border-spacing: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-width: 0 1px 1px 0;
+  font-size: 16px;
+  font-family: sans-serif;
+  border-collapse: separate;
+  min-width:100%;
+}
+td, th{
+  padding:0;
+  border: 1px solid;
+  border-color: #ddd transparent transparent #ddd; 
+}
+td.ss-focused-cell{
+  border: 1px solid;
+  border-color: black;
+} 
+td {
+  display: table-cell;
+}
+td>*, th>*{
+  border:none;
+  padding:10px;
+  min-width:100px;
+  min-height: 40px;
+  font:inherit;
+  line-height: 20px;
+  color:inherit;
+  white-space: normal;
+}
+td>div::selection {
+    color: none;
+    background: none;
+}
+.placeholder div{
+  user-select:none;
+  color:rgba(0,0,0,0.2);
+}
+*[title] div{cursor:help;}
+th{text-align:left;}
 
 </style>
