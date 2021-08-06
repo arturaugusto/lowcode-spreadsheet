@@ -1,5 +1,4 @@
 <template>
-  {{colSchemaMap}}
   <table>
     <tbody>
       <tr class="" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
@@ -7,6 +6,9 @@
           v-bind:class="{
             'ss-focused-cell': selInfo.focus.id === cell.id,
             'ss-selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
+            'ss-list': colSchemaMap[cell.col].type === 'list',
+            'ss-value-in-list': colSchemaMap[cell.col].type === 'list' && colSchemaMap[cell.col].options.indexOf(cell.val) !== -1
+
           }"
           class="ss-cell"
           @click="selectCell($event, cell)"
@@ -18,15 +20,16 @@
           :ref="cell.id+'_td'"
         >
           <input
-            @keydown="cellInputEventHandler($event, cell)"
             v-if="editingCell.id === cell.id && colSchemaMap[cell.col].type === 'string'"
+            @keydown="cellInputEventHandler($event, cell)"
             :ref="cell.id"
             class="ss-cell-input"
           >
           <select 
             v-else-if="editingCell.id === cell.id && colSchemaMap[cell.col].type === 'list'"
+            @keydown="cellInputEventHandler($event, cell)"
             :ref="cell.id"
-            class="ss-cell-select"
+            class="ss-cell-select select"
           >
             <option value="" disabled selected>Please select one</option>
             <option>A</option>
@@ -624,7 +627,6 @@ export default {
       }
     },
     selectCell (event, cell) {
-
       if (event.type === 'click') {
         if (this.editingCell.id) return
         this.$refs.dummy.focus()
@@ -707,8 +709,22 @@ export default {
           return a
         }, {})
 
+
         return Object({
           cells: cells,
+          // cells: cells.map(cell => {
+
+          //   let klass = {
+          //     'ss-focused-cell': this.selInfo.focus.id === cell.id,
+          //     'ss-selected-cell': this.selectRangeCellsIdsMap[cell.id] && this.selInfo.focus.id !== cell.id,
+          //   }
+            
+          //   // if (this.colSchemaMap[cell.col].type === 'list') {
+          //   //   klass['ss-list'] = true
+          //   //   klass['ss-value-in-list'] = this.colSchemaMap[cell.col].options.indexOf(cell.val) !== -1
+          //   // }
+          //   return Object.assign(cell, {class: klass})
+          // }),
           id: row.id,
           class: Object.assign({
             'ss-row': true,

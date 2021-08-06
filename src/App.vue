@@ -2,7 +2,7 @@
   <section class="section">
     <div class="container">
       <HelloWorld
-        :schema="{'cols': cols.split(',').map((x) => Object({name: x, type: x === 'A' ? 'list' : 'string'}))}"
+        :schema="{'cols': cols.split(',').map((x) => Object({options: ['A','B','C','D'], name: x, type: x === 'A' ? 'list' : 'string'}))}"
         :initEvents="events"
       />
     </div>
