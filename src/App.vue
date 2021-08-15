@@ -1,33 +1,253 @@
 <template>
   <section class="section">
-    <div class="container">
-      <HelloWorld
-        :schema="{'cols': cols.split(',').map((x) => Object({options: ['A','B','C','D'], name: x, type: x === 'A' ? 'list' : 'string'}))}"
-        :initEvents="events"
-      />
+
+    <!-- Models -->
+    <div v-if="model" class="modal" v-bind:class="{'is-active': model}">
+      <div class="modal-background"></div>
+      <div class="modal-card" style="min-width: 100%;min-height: 100%;">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Modal title</p>
+          <button @click="cancelItemEdit('model')" class="delete" aria-label="close"></button>
+        </header>
+        <section class="modal-card-body">
+
+
+          <div class="field">
+            <label class="label">Name</label>
+            <div class="control">
+              <input v-model="model.name" class="input" type="text" placeholder="Model name">
+            </div>
+          </div>
+          {{funcs}}
+          <span v-if="funcs && funcs.length" class="select is-primary field mr-2">
+            <select v-model="selFuncId">
+              <option v-for="func in funcs" :key="func.id" :value="func.id">{{func.name}}</option>
+            </select>
+          </span>
+
+          <span class="control">
+            <button @click="createFunc" class="button is-success">New function</button>
+          </span>
+
+          <div v-if="selFunc">
+            <div class="columns is-desktop">
+
+              <div class="column is-10">
+                <div class="control">
+                  <label class="label">Function name</label>
+                  <input v-model="selFunc.name" class="input" type="text" placeholder="Function name">
+                </div>
+              </div>
+
+              <div class="column is-2">
+                <div class="control">
+                  <label class="label">Unit</label>
+                  <input v-model="selFunc.unit" class="input" type="text" placeholder="Unit" style="max-width: 128px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- <div class="">
+              <HelloWorld
+                :schema="{'cols': [{name: 'A', type: 'list', options: ['lala', 'bah']}, {name: 'B', type: 'string'}]}"
+              />
+            </div> -->
+          </div>
+
+          <!-- Content ... -->
+        </section>
+        <footer class="modal-card-foot">
+          <button @click="saveItem('model')" class="button is-success">Save changes</button>
+          <!-- <button class="button">Cancel</button> -->
+        </footer>
+      </div>
     </div>
+
+
+    <div class="container">
+      <button @click="createModel" class="button is-large is-fullwidth is-primary is-outlined">Large</button>
+    </div>
+
+    <!-- search itens -->
+
+
+    <div class="mt-2">
+      <article class="panel is-primary">
+        <p class="panel-heading is-rounded">
+          Primary
+        </p>
+        <p class="panel-tabs">
+          <a class="is-active">All</a>
+          <a>Public</a>
+          <a>Private</a>
+          <a>Sources</a>
+          <a>Forks</a>
+        </p>
+        <div class="panel-block">
+          <p class="control has-icons-left">
+            <input class="input is-primary" type="text" placeholder="Search">
+            <span class="icon is-left">
+              <i class="fas fa-search" aria-hidden="true"></i>
+            </span>
+          </p>
+        </div>
+        <a v-for="model in models" :key="model.id" class="panel-block" @click="editItem('model', model.id)">
+          <span class="panel-icon">
+            <i class="fas fa-book" aria-hidden="true"></i>
+          </span>
+          {{model.name || 'Unnamed model'}}
+        </a>
+      </article>
+    </div>
+
   </section>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+// import HelloWorld from './components/HelloWorld.vue'
+import PouchDB from 'pouchdb'
+import pouchdbUpsert from 'pouchdb-upsert'
+import relationalPouch from 'relational-pouch'
+// import pouchdbFind from 'pouchdb-find'
+
+PouchDB.plugin(pouchdbUpsert)
+PouchDB.plugin(relationalPouch)
+// PouchDB.plugin(pouchdbFind)
+
+import timeToId from './timeToId.js'
 
 export default {
   name: 'App',
   components: {
-    HelloWorld
+    // HelloWorld
   },
   mounted () {
-    // window.setTimeout(() => {
-    //   this.cols += ',C,E'
-    // }, 2000)
+    this.db = new PouchDB('my_database')
+
+    this.schema = [
+      {
+        singular: 'model',
+        plural: 'models',
+        relations: {
+          funcs: {hasMany: {type: 'func', options: {async: true}}},
+        }
+      },
+      {
+        singular: 'func',
+        plural: 'funcs',
+        relations: {
+          models: {belongsTo: {type: 'model', options: {async: true}}},
+          fevts: {hasMany: {type: 'fevt', options: {async: true}}},
+        }
+      },
+      {
+        singular: 'fevt',
+        plural: 'fevts',
+        relations: {
+          func: {belongsTo: {type: 'func', options: {async: true}}},
+        }
+      }
+    ]
+
+    this.db.setSchema(this.schema)
+    
+    window.DB = this.db
+
+    // get list of existing models
+    this.db.rel.find('model').then((response) => {
+      this.models = response.models
+    })
+  },
+  methods: {
+    cancelItemEdit (type) {
+      return this.db.rel.find(type).then((response) => {
+        this[type] = null
+        let plural = this.schema.filter(item => item.singular === type)[0].plural
+        this[plural] = response[plural]
+      })
+    },
+    saveItem (type) {
+      return this.db.rel.save(type, this[type]).then((response) => {
+        this[type].rev = response.rev
+      }).catch(function (err) {
+        if (err.code === 409) { // conflict
+          // handle the conflict
+        } else {
+          throw err;
+        }
+      })
+    },
+    editItem (type, ids) {
+      const traverse = (target, ids) => {
+        this.db.rel.find(target, ids).then((response) => {
+          
+          let targetSchema = this.schema.filter(item => item.singular === target)[0]
+          
+          if (ids && ids.constructor === Array) {
+            this[targetSchema.plural] = response[targetSchema.plural]
+          }
+          if (ids && ids.constructor === String) {
+            this[target] = response[targetSchema.plural][0]
+          }
+          
+          let relations = targetSchema.relations
+          Object.keys(relations).forEach(relation => {
+            if (relations[relation]['hasMany']) {
+              let targetSingular = relations[relation]['hasMany']['type']
+              if (ids && ids.constructor === String && response[targetSchema.plural][0]) {
+                if (response[targetSchema.plural][0][relation]) {
+                  traverse(targetSingular, response[targetSchema.plural][0][relation])
+                }
+              }              
+            }
+          })
+        })
+      }
+      traverse(type, ids)
+    },
+
+    
+    // factory functions
+    
+    createModel () {
+      return this.db.rel.save('model', {
+        id: timeToId.toB64(),
+        name: '',
+      }).then((response) => {
+        this.editItem('model', response.id)
+      }).catch(err => {
+        console.log(err)
+      })
+    },
+    createFunc () {
+      let id = timeToId.toB64()
+      return this.saveItem('model').then(() => {
+        return this.db.rel.save('func', {
+          id: id,
+          name: '',
+          unit: '',
+          model: this.model.id,
+        })
+      }).then((response) => {
+        console.log(response)
+      }).catch(err => {
+        console.log(err)
+      })
+    },
+  },
+  computed: {
+    selFunc () {
+      return this.funcs.filter(func => func.id === this.selFuncId)[0]
+    }
   },
   data () {
     return {
-      cols: 'A,B',
-      events: [{"id":"UVIBRGT604Rf","e":{"splice":[0,0,[{"id":"pKr7tvyL","cells":[{"id":"I4Bzuljj","col":"A","val":""},{"id":"UAZo3x7C","col":"B"},{"id":"pIdu0C30","col":"C"},{"id":"nIQjY9n9","col":"D"}]}]],"changeCols":[["pKr7tvyL","I4Bzuljj","A"],["pKr7tvyL","UAZo3x7C","B"]]}},{"id":"UVIBRG3483wZ","e":{"splice":[0,0,[{"id":"MhMAg4vK","cells":[{"id":"yy25CLrO","col":"A","val":"1"},{"id":"ykgKo8Tb","col":"B","val":"2"},{"id":"ruQ4issn","col":"C","val":"3"},{"id":"Qo490eE1","col":"D"}]}]],"changeCols":[["MhMAg4vK","yy25CLrO","A"],["MhMAg4vK","ykgKo8Tb","B"],["MhMAg4vK","ruQ4issn","C"],["MhMAg4vK","Qo490eE1","D"]]}},{"id":"UVIBRG3648xd","e":{"splice":[1,0,[{"id":"YIS2NLh9","cells":[{"id":"d4JzCpXZ","col":"A","val":"4"},{"id":"1oPNj0Rl","col":"B","val":"5"},{"id":"F22M5bf3","col":"C","val":"6"},{"id":"19XTUhhf","col":"D"}]}]],"changeCols":[["YIS2NLh9","d4JzCpXZ","A"],["YIS2NLh9","1oPNj0Rl","B"],["YIS2NLh9","F22M5bf3","C"],["YIS2NLh9","19XTUhhf","D"]]}},{"id":"UVIBRG3798kI","e":{"splice":[2,0,[{"id":"eU9no7kE","cells":[{"id":"fdCp3AN6","col":"A"},{"id":"MPKxLJQ3","col":"B","val":"7"},{"id":"IPwzJhta","col":"C","val":"8"},{"id":"kiR3Hdty","col":"D"}]}]],"changeCols":[["eU9no7kE","fdCp3AN6","A"],["eU9no7kE","MPKxLJQ3","B"],["eU9no7kE","IPwzJhta","C"],["eU9no7kE","kiR3Hdty","D"]]}},{"id":"UVIBRG7002zu","e":{"change":[["yy25CLrO",null,"1"]]}},{"id":"UVIBRG7317e3","e":{"change":[["ykgKo8Tb",null,"2"]]}},{"id":"UVIBRG7778W7","e":{"change":[["ruQ4issn",null,"3"]]}},{"id":"UVIBRGa2464a","e":{"change":[["d4JzCpXZ",null,"4"]]}},{"id":"UVIBRGa677o0","e":{"change":[["1oPNj0Rl",null,"5"]]}},{"id":"UVIBRGb6058s","e":{"change":[["F22M5bf3",null,"6"]]}},{"id":"UVIBRGe473B4","e":{"change":[["MPKxLJQ3",null,"7"]]}},{"id":"UVIBRGf199Vl","e":{"change":[["IPwzJhta",null,"8"]]}}]
+      model: null,
+      models: [],
+      funcs: [],
+      selFuncId: undefined,
     }
-  }
+  },
 }
 </script>
 

@@ -1,4 +1,5 @@
 <template>
+  <!-- {{colSchemaMap}} -->
   <table>
     <tbody>
       <tr class="" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
@@ -64,18 +65,11 @@ var randStr = (n) => {
     ).join('')
 }
 
-
-var timeToId = (isoString) => {
-  isoString = isoString || new Date().toISOString()
-  let [dt, tz] = isoString.split('.')
-  return dt.replace(/[-T:]+/g, '')
-    .match(/.{2}/g)
-    .map(parseFloat)
-    .map(x => x < 10 ? (x+10).toString(36).toUpperCase() :
-      x <= 25 ? (x+10).toString(36).toUpperCase() : (x-26).toString(36)
-    ).join('') + tz.slice(0,3)
+var timeToId = () => {
+  let id = Date.now().toString(36)
+  if (id.length === 9) return id
+  return '0'+id
 }
-
 
 var cumulativeOffset = function(element) {
     var top = 0, left = 0;
@@ -121,9 +115,8 @@ export default {
     }
   },
   created () {
-    
   },
-  mounted () {
+  beforeMount () {
     if (this.initEvents && this.initEvents.length) {
       this.events = this.initEvents
       this.events.forEach(() => {
@@ -132,6 +125,9 @@ export default {
     } else {
       this.insertRow(0)
     }
+  },
+  mounted () {
+    
   },
   methods: {
     doChangeCols (item) {
@@ -711,20 +707,16 @@ export default {
 
 
         return Object({
-          cells: cells,
-          // cells: cells.map(cell => {
-
-          //   let klass = {
-          //     'ss-focused-cell': this.selInfo.focus.id === cell.id,
-          //     'ss-selected-cell': this.selectRangeCellsIdsMap[cell.id] && this.selInfo.focus.id !== cell.id,
-          //   }
-            
-          //   // if (this.colSchemaMap[cell.col].type === 'list') {
-          //   //   klass['ss-list'] = true
-          //   //   klass['ss-value-in-list'] = this.colSchemaMap[cell.col].options.indexOf(cell.val) !== -1
-          //   // }
-          //   return Object.assign(cell, {class: klass})
-          // }),
+          // cells: cells,
+          cells: cells.map(cell => {
+            let klass = {}
+            // TODO: add ad-hoc function
+            if (this.colSchemaMap[cell.col].type === 'list') {
+              klass['ss-list'] = true
+              klass['ss-value-in-list'] = this.colSchemaMap[cell.col].options.indexOf(cell.val) !== -1
+            }
+            return Object.assign(cell, {class: klass})
+          }),
           id: row.id,
           class: Object.assign({
             'ss-row': true,
