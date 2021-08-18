@@ -11,6 +11,7 @@
         </header>
         <section class="modal-card-body">
 
+          {{model}}
 
           <div class="field">
             <label class="label">Name</label>
@@ -157,6 +158,25 @@ export default {
     this.db.rel.find('model').then((response) => {
       this.models = response.models
     })
+
+
+    this.db.changes({
+      since: 'now',
+      include_docs: true,
+      live: true
+    }).on('change', (change) => {
+      let docInfoObj = this.db.rel.parseDocID(change.id)
+      let type = docInfoObj.type
+      let id = docInfoObj.id
+      if (this[type] && this[type].id === id) {
+        console.log(change)
+        // Object.assign(this[type], change.doc.data)
+        this[type] = change.doc.data
+        this[type].id = id
+        this[type].rev = change.doc._rev
+      }
+    })
+
   },
   methods: {
     cancelItemEdit (type) {
@@ -167,8 +187,14 @@ export default {
       })
     },
     saveItem (type) {
+      if (!this[type]) {
+        console.warn(type + ' is not avaliable on `this`.')
+        return
+      }
+      
       return this.db.rel.save(type, this[type]).then((response) => {
-        this[type].rev = response.rev
+        // this[type].rev = response.rev
+        console.log(response)
       }).catch(function (err) {
         if (err.code === 409) { // conflict
           // handle the conflict
@@ -178,30 +204,44 @@ export default {
       })
     },
     editItem (type, ids) {
-      const traverse = (target, ids) => {
-        this.db.rel.find(target, ids).then((response) => {
-          
-          let targetSchema = this.schema.filter(item => item.singular === target)[0]
-          
-          if (ids && ids.constructor === Array) {
-            this[targetSchema.plural] = response[targetSchema.plural]
-          }
-          if (ids && ids.constructor === String) {
-            this[target] = response[targetSchema.plural][0]
-          }
-          
+
+      const traverse = (target, ids, action) => {
+        action = action === undefined ? 'find' : 'save'
+        
+        let targetSchema = this.schema.filter(item => item.singular === target)[0]
+
+        const traverseNext = (response) => {
           let relations = targetSchema.relations
           Object.keys(relations).forEach(relation => {
             if (relations[relation]['hasMany']) {
               let targetSingular = relations[relation]['hasMany']['type']
               if (ids && ids.constructor === String && response[targetSchema.plural][0]) {
                 if (response[targetSchema.plural][0][relation]) {
-                  traverse(targetSingular, response[targetSchema.plural][0][relation])
+                  traverse(targetSingular, response[targetSchema.plural][0][relation], action)
                 }
-              }              
+              }
             }
           })
-        })
+        }
+
+        if (action === 'find') {
+          this.db.rel.find(target, ids).then((response) => {
+            
+            if (ids && ids.constructor === Array) {
+              this[targetSchema.plural] = response[targetSchema.plural]
+            }
+            if (ids && ids.constructor === String) {
+              this[target] = response[targetSchema.plural][0]
+            }
+            traverseNext(response)
+          })
+        }
+
+        if (action === 'save') {
+          this.db.rel.save(target, ids).then((response) => {
+            traverseNext(response)
+          })
+        }
       }
       traverse(type, ids)
     },
