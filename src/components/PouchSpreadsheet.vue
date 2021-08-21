@@ -89,7 +89,8 @@ export default {
   name: 'HelloWorld',
   props: {
     schema: Object,
-    initEvents: Array,
+    docsPrefix: String,
+    db: Object,
   },
   watch: {
     'selInfo.focus': function () {
@@ -107,24 +108,41 @@ export default {
         // the 0.8 avoid a glitch when scroll down
         window.scrollTo(0, cumulativeOffsetTop - window.innerHeight + cellEl.clientHeight*0.8)
       }
-
     },
-    cols: function () {
-      let event = this.createChangeColsEvent()
-      this.doEvent(event)
+    cols: function (val, valPrev) {
+      if (JSON.stringify(val.sort((a, b) => a-b)) !== JSON.stringify(valPrev.sort((a, b) => a-b))) {
+        let event = this.createChangeColsEvent()
+        this.doEvent(event)
+      }
     }
   },
   created () {
   },
   beforeMount () {
-    if (this.initEvents && this.initEvents.length) {
-      this.events = this.initEvents
-      this.events.forEach(() => {
-        this.redo()
-      })
-    } else {
-      this.insertRow(0)
-    }
+    console.log('lala')
+    this.db.allDocs({
+      include_docs: true,
+      endkey: 'evt_2_'+this.docsPrefix+'~',
+    }).then(response => {
+      console.log(response)
+      this.events = response.rows.map(item => item.doc)
+      if (this.events.length === 0) {
+        this.insertRow(0)
+      } else {
+        this.events.forEach(() => {
+          this.redo()
+        })
+      }
+    })
+    // this.insertRow(0)
+    // if (this.initEvents && this.initEvents.length) {
+    //   this.events = this.initEvents
+    //   this.events.forEach(() => {
+    //     this.redo()
+    //   })
+    // } else {
+    //   // this.insertRow(0)
+    // }
   },
   mounted () {
     
@@ -158,7 +176,10 @@ export default {
       let insertRowEvent = {'splice': [start, 0, newData]}
       this.doEvent(insertRowEvent)
 
-      let changeColsEvent = this.createChangeColsEvent()
+      let changeColsEvent = {}
+      
+      // TODO: Do we need to set this event on every row add?
+      changeColsEvent = this.createChangeColsEvent()
       this.doEvent(changeColsEvent)
 
       let event = Object.assign(insertRowEvent, changeColsEvent)
@@ -215,21 +236,31 @@ export default {
     },
     addEvent (event) {
       this.events.splice(this.eventIndex)
-      this.events.push({id: timeToId()+randStr(2), e: event})
-      // this.$refs['blah'].value = JSON.stringify(this.events)
-      // console.log(this.events)
+      let evendDoc = {id: timeToId()+randStr(2), e: event}
+      this.events.push(evendDoc)
       this.eventIndex = this.events.length
+
+      // save to db
+      this.db.put(Object.assign({
+        _id: 'evt_2_'+this.docsPrefix+evendDoc.id,
+      }, evendDoc))
+      // .then(response => {
+      //   console.log(response)
+      // })
+      .catch(err => {
+        console.log(err)
+      })
     },
     startEditingCell (cell) {
       this.editingCell = cell
       this.editingCellBackup = JSON.parse(JSON.stringify(this.editingCell))
       let tdEl = this.$refs[cell.id+'_td']
       let rect = tdEl.getBoundingClientRect()
-      let borderWidth = getComputedStyle(tdEl).borderWidth
       this.$nextTick(() => {
         let inputEl = this.$refs[cell.id]
-        console.log(inputEl)
-        inputEl.style.width = `calc(${rect.width}px - 2 * ${borderWidth})`
+        // console.log(inputEl)
+        // inputEl.style.width = `calc(${rect.width}px - 2 * ${getComputedStyle(tdEl).borderWidth})`
+        inputEl.style.width = '100%'
         tdEl.style.width = ''+rect.width+'px'
         inputEl.focus()
         inputEl.value = cell.val||''
@@ -856,7 +887,7 @@ td {
 td>*, th>*{
   border:none;
   padding:10px;
-  min-width:100px;
+  /*min-width:100px;*/
   min-height: 40px;
   font:inherit;
   line-height: 20px;

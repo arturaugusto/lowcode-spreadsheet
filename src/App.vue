@@ -48,9 +48,27 @@
               </div>
             </div>
 
-            <div class="">
-              <HelloWorld
-                :schema="{'cols': [{name: 'A', type: 'list', options: ['lala', 'bah']}, {name: 'B', type: 'string'},{name: 'C', type: 'string'},{name: 'D', type: 'string'}]}"
+            <div v-for="funcSheet in funcs" :key="funcSheet.id" class="">
+              <PouchSpreadsheet
+                v-if="func && funcSheet.id === func.id"
+                :docsPrefix="func.id"
+                :schema="{
+                  cols: [
+                    // {
+                    //   name: 'A', type: 'list', options: ['lala', 'bah']
+                    // },
+                    // {
+                    //   name: 'B', type: 'string'
+                    // },
+                    {
+                      name: 'C', type: 'string'
+                    },
+                    {
+                      name: 'D', type: 'string'
+                    }
+                  ]
+                }"
+                :db="db"
               />
             </div>
             <button @click="saveItem('func')" class="button is-success">Save changes</button>
@@ -106,7 +124,7 @@
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import PouchSpreadsheet from './components/PouchSpreadsheet.vue'
 import PouchDB from 'pouchdb'
 import pouchdbUpsert from 'pouchdb-upsert'
 import relationalPouch from 'relational-pouch'
@@ -121,7 +139,7 @@ import timeToId from './timeToId.js'
 export default {
   name: 'App',
   components: {
-    HelloWorld
+    PouchSpreadsheet
   },
   mounted () {
     this.db = new PouchDB('my_database')
@@ -139,16 +157,16 @@ export default {
         plural: 'funcs',
         relations: {
           models: {belongsTo: {type: 'model', options: {async: true}}},
-          fevts: {hasMany: {type: 'fevt', options: {async: true}}},
+          // fevts: {hasMany: {type: 'fevt', options: {async: true}}},
         }
       },
-      {
-        singular: 'fevt',
-        plural: 'fevts',
-        relations: {
-          func: {belongsTo: {type: 'func', options: {async: true}}},
-        }
-      }
+      // {
+      //   singular: 'fevt',
+      //   plural: 'fevts',
+      //   relations: {
+      //     func: {belongsTo: {type: 'func', options: {async: true}}},
+      //   }
+      // }
     ]
 
     this.db.setSchema(this.schema)
@@ -185,6 +203,10 @@ export default {
       this.func = this.funcs.filter(item => item.id === event.target.value)[0]
     },
     cancelItemEdit (type) {
+      console.warn("TODO: limpar relações recursivamente")
+      this.func = null
+      this.funcs = []
+      
       return this.db.rel.find(type).then((response) => {
         this[type] = null
         let plural = this.schema.filter(item => item.singular === type)[0].plural
