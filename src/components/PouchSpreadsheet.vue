@@ -1,6 +1,11 @@
 <template>
   <!-- {{colSchemaMap}} -->
   <table>
+    <thead>
+      <tr>
+        <th v-for="col in schema.cols" :key="col.name">{{col.desc||col.name}}</th>
+      </tr>
+    </thead>
     <tbody>
       <tr class="" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
         <td
@@ -119,12 +124,11 @@ export default {
   created () {
   },
   beforeMount () {
-    console.log('lala')
     this.db.allDocs({
       include_docs: true,
-      endkey: 'evt_2_'+this.docsPrefix+'~',
+      startkey     : 'evt_2_'+this.docsPrefix,
+      endkey       : 'evt_2_'+this.docsPrefix+'\ufff0',
     }).then(response => {
-      console.log(response)
       this.events = response.rows.map(item => item.doc)
       if (this.events.length === 0) {
         this.insertRow(0)
@@ -134,15 +138,6 @@ export default {
         })
       }
     })
-    // this.insertRow(0)
-    // if (this.initEvents && this.initEvents.length) {
-    //   this.events = this.initEvents
-    //   this.events.forEach(() => {
-    //     this.redo()
-    //   })
-    // } else {
-    //   // this.insertRow(0)
-    // }
   },
   mounted () {
     
@@ -887,7 +882,7 @@ td {
 td>*, th>*{
   border:none;
   padding:10px;
-  /*min-width:100px;*/
+  min-width:100px;
   min-height: 40px;
   font:inherit;
   line-height: 20px;
@@ -903,6 +898,10 @@ td>div::selection {
   color:rgba(0,0,0,0.2);
 }
 *[title] div{cursor:help;}
-th{text-align:left;}
+th{
+  text-align:left;
+  padding: 10px;
+  /*font-size: 18px;*/
+}
 
 </style>
