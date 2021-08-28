@@ -2,6 +2,69 @@
   <section class="section">
 
 
+    <!-- Instruments -->
+
+    <div v-if="instrument" class="modal" v-bind:class="{'is-active': instrument}">
+      <div class="modal-background"></div>
+      <div class="modal-card" style="min-width: 100%;min-height: 100%;">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Modal title</p>
+          <button @click="goToMain()" class="delete" aria-label="close"></button>
+        </header>
+        <section class="modal-card-body" id="modelCardBody">
+
+          <div v-if="!instrument.modelConfirmed" class="field has-addons">
+            <div class="control">
+              <span v-if="models && models.length" class="select is-primary field mr-2">
+                <select v-model="instrument.model">
+                  <option 
+                    v-for="model in models"
+                    :key="model.id" 
+                    :value="model.id">{{model.name}}
+                  </option>
+                </select>
+              </span>
+            </div>
+            <div class="control">
+              <button @click="(instrument.modelConfirmed = true)&&saveItem('instrument').catch(() => instrument.modelConfirmed = false)" type="submit" class="button is-primary">Confirm</button>
+            </div>
+          </div>
+
+          <div v-if="instrument.modelConfirmed">
+
+            <p class="subtitle is-5">Model: {{instrument.model}}</p>
+            
+            <div class="field">
+              <label class="label">Serial number</label>
+              <div class="control">
+                <input v-model="instrument.serialNumber" class="input" type="text" placeholder="Serial number">
+              </div>
+            </div>
+
+            <div class="tabs">
+              <ul>
+                <li><a @click="createTest">+</a></li>
+
+              </ul>
+            </div>
+            {{test}}
+            ---
+            {{tests}}
+          </div>
+        </section>
+        <footer class="modal-card-foot">
+          <button @click="saveItem('instrument')" class="button is-success">Save instrument</button>
+          <button @click="deleteItem('instrument', blur=true)" class="button is-danger">Delete instrument</button>
+          <!-- <button class="button">Cancel</button> -->
+        </footer>
+      </div>
+    </div>
+
+
+
+
+
+
 
     <!-- Models -->
 
@@ -10,9 +73,9 @@
       <div class="modal-card" style="min-width: 100%;min-height: 100%;">
         <header class="modal-card-head">
           <p class="modal-card-title">Modal title</p>
-          <button @click="cancelItemEdit('model')" class="delete" aria-label="close"></button>
+          <button @click="goToMain()" class="delete" aria-label="close"></button>
         </header>
-        <section class="modal-card-body">
+        <section class="modal-card-body" id="modelCardBody">
 
           <!-- {{model}} -->
 
@@ -62,20 +125,25 @@
               <PouchSpreadsheet
                 v-if="func && funcSheet.id === func.id"
                 :docsPrefix="func.id"
+                :computedClass="modelComputedCellContent"
                 :schema="{
                   cols: [
                     // {
                     //   name: 'A', type: 'list', options: ['lala', 'bah']
                     // },
-                    // {
-                    //   name: 'B', type: 'string'
-                    // },
-                    {
-                      name: 'X', type: 'string'
-                    },
-                    {
-                      name: 'D', type: 'string'
-                    }
+                    {name: 'Description', type: 'string'},
+                    {name: 'Range', type: 'string'},
+                    {name: 'Start', type: 'string'},
+                    {name: 'Full Range', type: 'string'},
+                    {name: 'Uncertainty', type: 'string'},
+                    {name: 'Distribution', type: 'string'},
+                    {name: 'Uncertainty', type: 'string'},
+                    {name: 'a', type: 'string'},
+                    {name: 'b', type: 'string'},
+                    {name: 'c', type: 'string'},
+                    {name: 'Influence Quantity', type: 'string'},
+                    {name: 'IQ Start', type: 'string'},
+                    {name: 'IQ End', type: 'string'},
                   ]
                 }"
                 :db="db"
@@ -99,12 +167,15 @@
 
 
     <div class="container">
-      <button @click="createModel" class="button is-large is-fullwidth is-primary is-outlined">Large</button>
+      <button @click="createModel" class="mt-2 button is-large is-fullwidth is-primary is-outlined">Large</button>
+      <button @click="createInstrument" class="mt-2 button is-large is-fullwidth is-link is-outlined">Large 2</button>
     </div>
 
+
+
+
+
     <!-- search itens -->
-
-
     <div class="mt-2">
       <article class="panel is-primary">
         <p class="panel-heading is-rounded">
@@ -125,12 +196,48 @@
             </span>
           </p>
         </div>
-        <a v-for="model in models" :key="model.id" class="panel-block" @click="pull('model', model.id)">
+        <a v-for="model in models"
+          :key="model.id"
+          class="panel-block"
+          @click="db.rel
+            .find('model', model.id)
+            .then(response => {
+              this.model = response.models[0]
+              return db.rel.find('func', model.funcs)
+            })
+            .then(response => {
+              this.funcs = response.funcs
+              if (this.funcs.length) this.func = this.funcs[0]
+            })
+            .catch(err => console.log(err))"
+          >
           <span class="panel-icon">
             <i class="fas fa-book" aria-hidden="true"></i>
           </span>
           {{model.name || 'Unnamed model'}}
         </a>
+        <a v-for="instrument in instruments"
+          :key="instrument.id"
+          class="panel-block"
+          @click="db.rel
+            .find('instrument', instrument.id)
+            .then(response => {
+              this.instrument = response.instruments[0]
+              return db.rel.find('test', instrument.tests)
+            })
+            .then(response => {
+              this.tests = response.tests
+              if (this.tests.length) this.test = this.tests[0]
+            })
+            .catch(err => console.log(err))"
+          >
+          <span class="panel-icon">
+            <i class="fas fa-book" aria-hidden="true"></i>
+          </span>
+          {{instrument.name || 'Unnamed instrument'}}
+        </a>
+
+
       </article>
     </div>
 
@@ -149,6 +256,8 @@ PouchDB.plugin(relationalPouch)
 
 import timeToId from './timeToId.js'
 
+import modelComputedCellContent from './modelComputedCellContent.js'
+
 export default {
   name: 'App',
   components: {
@@ -163,18 +272,12 @@ export default {
     // }
   },
   mounted () {
+    this.modelComputedCellContent = modelComputedCellContent
     this.db = new PouchDB('my_database')
-
     this.schema = schema
-
     this.db.setSchema(this.schema)
-    
     window.DB = this.db
-
-    // get list of existing models
-    this.db.rel.find('model').then((response) => {
-      this.models = response.models
-    })
+    this.goToMain()
     this.startSync()
   },
   methods: {
@@ -209,7 +312,7 @@ export default {
             this[type] = null
           }
         }
-        
+
         // manage UI state when something is updated
         if (this[type] && this[type].id === id && change.doc.data) {
           Object.assign(this[type], change.doc.data) // TODO: this line is necessary?
@@ -218,26 +321,28 @@ export default {
         }
       })
     },
-    cancelItemEdit (type) {
-      let targetSchema = this.schema.filter(item => item.singular === type)[0]
-      if (!targetSchema) {
-        console.warn('Cannot cancel `'+type+'` because it do not exists in schema.')
-        return
-      }
+    goToMain () {
+      ['model', 'instrument'].forEach(type => {
+        let targetSchema = this.schema.filter(item => item.singular === type)[0]
+        if (!targetSchema) {
+          console.warn('Cannot cancel `'+type+'` because it do not exists in schema.')
+          return
+        }
 
-      // clean local state linked relations
-      if (targetSchema.relations) {
-        Object.keys(targetSchema.relations).forEach(relationPlural => {
-          let relationSchema = this.schema.filter(item => item.plural === relationPlural)[0]
-          this[relationSchema.singular] = null
-          this[relationPlural] = []
+        // clean local state linked relations
+        if (targetSchema.relations) {
+          Object.keys(targetSchema.relations).forEach(relationPlural => {
+            let relationSchema = this.schema.filter(item => item.plural === relationPlural)[0]
+            this[relationSchema.singular] = null
+            this[relationPlural] = []
+          })
+        }
+        
+        this.db.rel.find(type).then((response) => {
+          this[type] = null
+          let plural = this.schema.filter(item => item.singular === type)[0].plural
+          this[plural] = response[plural]
         })
-      }
-      
-      return this.db.rel.find(type).then((response) => {
-        this[type] = null
-        let plural = this.schema.filter(item => item.singular === type)[0].plural
-        this[plural] = response[plural]
       })
     },
     checkIfItemExists (type) {
@@ -255,7 +360,14 @@ export default {
       if (!this.checkIfItemExists(type)) return
       if (blur) this.syncHandler.cancel()
       return this.db.rel.del(type, this[type]).then(() => {
-        if (blur) this[type] = null
+        if (blur) {
+          let plural = this.schema.filter(item => item.singular === type)[0].plural
+          let id = this[type].id
+          this[type] = null
+          if (this[plural]) {
+            this[plural] = this[plural].filter(item => item.id !== id)
+          }
+        }
       }).catch(err => {
         console.log(err)
       }).finally(() => {
@@ -282,48 +394,58 @@ export default {
         }
       })
     },
-    pull (type, ids) {
-      const traverse = (target, ids) => {
-        let targetSchema = this.schema.filter(item => item.singular === target)[0]
-        if (targetSchema === undefined) {
-          console.error('`' + target + '`not found. Tip: type must be singular')
-        }
-
-        return this.db.rel.find(target, ids).then((response) => {
-
-          let found
-          if (ids && ids.constructor === Array) {
-            this[targetSchema.plural] = response[targetSchema.plural]
-            found = response[targetSchema.plural]
-            this[targetSchema.singular] = response[targetSchema.plural][0]
-          }
-
-          if (ids && ids.constructor === String) {
-            this[target] = response[targetSchema.plural][0]
-            found = response[targetSchema.plural][0]
-          }
-
-          let relations = targetSchema.relations
-          Object.keys(relations).forEach(relation => {
-            if (relations[relation]['hasMany']) {
-              let targetSingular = relations[relation]['hasMany']['type']
-              let targetPlural = this.schema.filter(item => item.singular === targetSingular)[0].plural
-              traverse(targetSingular, found[targetPlural])
-            }
-          })
-        })
-      }
-      return traverse(type, ids)
-    },
 
     // factory functions
-    
+    createTest () {
+      let id = timeToId.toB64()
+      let test = {
+        id: id,
+        instrument: this.instrument.id,
+      }
+      this.instrument.tests = this.instrument.tests || []
+      this.instrument.tests.push(id)
+      return this.saveItem('instrument').then(() => {
+        return this.db.rel.save('test', test)
+      }).then(() => {
+        return this.db.rel.find('test', this.instrument.tests)
+      }).then(response => {
+        this.tests = response.tests
+      }).then(() => {
+        this.$nextTick(() => {
+          this.test = this.tests.filter(item => item.id === id)[0]
+        })
+      })
+      .catch(err => {
+        console.log(err)
+      })
+    },
+
+
+
+    createInstrument () {
+      return this.db.rel.save('instrument', {
+        id: timeToId.toB64(),
+        serialNumber: '',
+        modelConfirmed: false,
+        model: undefined,
+        activeTestId: undefined,
+      }).then((response) => {
+        return this.db.rel.find('instrument', response.id)
+      }).then((response) => {
+        this.instrument = response.instruments[0]
+      }).catch(err => {
+        console.log(err)
+      })
+
+    },
     createModel () {
       return this.db.rel.save('model', {
         id: timeToId.toB64(),
         name: '',
       }).then((response) => {
-        this.pull('model', response.id)
+        return this.db.rel.find('model', response.id)
+      }).then((response) => {
+        this.model = response.models[0]
       }).catch(err => {
         console.log(err)
       })
@@ -342,7 +464,9 @@ export default {
       return this.saveItem('model').then(() => {
         return this.db.rel.save('func', func)
       }).then(() => {
-        return this.pull('func', this.model.funcs)
+        return this.db.rel.find('func', this.model.funcs)
+      }).then(response => {
+        this.funcs = response.funcs
       }).then(() => {
         this.$nextTick(() => {
           this.func = this.funcs.filter(item => item.id === id)[0]
@@ -361,8 +485,15 @@ export default {
 
       model: null,
       models: [],
+      
       func: null,
       funcs: [],
+      
+      instrument: null,
+      instruments: [],
+
+      test: null,
+      tests: [],
     }
   },
 }
@@ -376,17 +507,5 @@ export default {
   color: #2c3e50;
   margin-top: 60px;
 }
-
-.ss-cell-blur {
-  text-align: right;
-}
-
-.ss-selected-cell {
-  background: #a0c3e26e;
-}
-/*.ss-cell-input {
-  width: 100%;
-  height: 100%;
-}*/
 
 </style>

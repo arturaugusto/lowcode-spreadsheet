@@ -1,29 +1,27 @@
 <template>
-  <!-- {{colSchemaMap}} -->
-  <table>
+  
+  <table v-if="cols.length && matrixVisible.length">
     <thead>
       <tr>
-        <th v-for="col in schema.cols" :key="col.name">{{col.desc||col.name}}</th>
+        <th v-for="col in cols" :key="col">{{col}}</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="" v-bind:class="row.class" v-for="row in matrixVisible" :key="row.id">
+      <tr v-for="row in matrixVisible" :key="row.id">
         <td
-          v-bind:class="{
-            'ss-focused-cell': selInfo.focus.id === cell.id,
-            'ss-selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id,
-            'ss-list': colSchemaMap[cell.col].type === 'list',
-            'ss-value-in-list': colSchemaMap[cell.col].type === 'list' && colSchemaMap[cell.col].options.indexOf(cell.val) !== -1
-
-          }"
           class="ss-cell"
           @click="selectCell($event, cell)"
           @mousedown="selectCell($event, cell)"
           @mousemove="selectCell($event, cell)"
           @mouseup="selectCell($event, cell)"
-          v-for="cell in row.cells"
+          v-for="(cell, cell_i) in row.cells"
           :key="cell.id"
           :ref="cell.id+'_td'"
+
+          v-bind:class="Object.assign(
+            {'ss-selected-cell': selectRangeCellsIdsMap[cell.id] && selInfo.focus.id !== cell.id},
+            row.classes[cell_i]
+          ) "
         >
           <input
             v-if="editingCell.id === cell.id && colSchemaMap[cell.col].type === 'string'"
@@ -96,6 +94,8 @@ export default {
     schema: Object,
     docsPrefix: String,
     db: Object,
+    windowElId: String,
+    computedClass: Function,
   },
   watch: {
     'selInfo.focus': function () {
@@ -103,22 +103,32 @@ export default {
       let cellEl = this.$refs[this.selInfo.focus.id+'_td']
       dummyEl.style['top'] = ''+cellEl.offsetTop+'px'
       dummyEl.focus()
+
+      let scrollContainer = document.getElementById(this.windowElId)
+      scrollContainer = scrollContainer || window
       
       let cumulativeOffsetTop = cumulativeOffset(dummyEl).top
-      let diff = cumulativeOffsetTop - window.scrollY
+      let diff = cumulativeOffsetTop - scrollContainer.scrollY
       if (diff < 0) {
-        window.scrollTo(0, cumulativeOffsetTop)
+        scrollContainer.scrollTo(0, cumulativeOffsetTop)
       }
-      if (diff > window.innerHeight) {
+      if (diff > scrollContainer.innerHeight) {
         // the 0.8 avoid a glitch when scroll down
-        window.scrollTo(0, cumulativeOffsetTop - window.innerHeight + cellEl.clientHeight*0.8)
+        scrollContainer.scrollTo(0, cumulativeOffsetTop - scrollContainer.innerHeight + cellEl.clientHeight*0.8)
       }
     },
-    cols: function (val, valPrev) {
-      if (JSON.stringify(val.sort((a, b) => a-b)) !== JSON.stringify(valPrev.sort((a, b) => a-b))) {
-        let event = this.createChangeColsEvent()
-        this.doEvent(event)
-      }
+    cols: function (/*val, valPrev*/) {
+      // console.log(val, valPrev)
+      // if (JSON.stringify(val.sort((a, b) => a-b)) !== JSON.stringify(valPrev.sort((a, b) => a-b))) {
+      //   console.log('aqui2')
+      //   let event = this.createChangeColsEvent()
+      //   this.doEvent(event)
+      // }
+
+      // TODO: make this run less frequently
+      let event = this.createChangeColsEvent()
+      this.doEvent(event)
+
     }
   },
   created () {
@@ -129,6 +139,8 @@ export default {
       startkey     : 'evt_2_'+this.docsPrefix,
       endkey       : 'evt_2_'+this.docsPrefix+'\ufff0',
     }).then(response => {
+      // TODO: filter "dead events", when we undo some of those
+      // and then resume. Maybe filter than when we load it
       this.events = response.rows.map(item => item.doc)
       if (this.events.length === 0) {
         this.insertRow(0)
@@ -183,7 +195,9 @@ export default {
     doEvent (event) {
       if (event['change']) {
         event['change'].forEach(item => {
-          let cell = this.cellLinksByCellIdMap[item[0]].self
+          let cellLink = (this.cellLinksByCellIdMap[item[0]])
+          if (!cellLink) return
+          let cell = cellLink.self
           cell.val = item[2]
         })
       }
@@ -201,6 +215,7 @@ export default {
       this.eventIndex = this.eventIndex + 1
     },
     undo () {
+      // TODO: handle undo for removed cols
       if (this.eventIndex <= 1) return
       let event = this.events[this.eventIndex - 1].e
       if (event['change']) {
@@ -718,41 +733,29 @@ export default {
         .reduce((a, c) => a.indexOf(c) !== -1 ? a : a.push(c)&&a, [])
     },
     matrixVisible () {
-      return this.rows.map((row, row_i) => {
+      return this.rows.map((row, /*row_i*/) => {
         let cells = this.cols.map(col => row.cells
           .filter(x => col === x.col)
           .sort((a, b) => b.id.localeCompare(a.id))[0] // get cell with last id
         )
-        
-        // create el class based on data
-        let elClassMap = cells.reduce((a, c) => {
-          a['ss-row-has-'+c.col+'-data'] = Boolean(c.val)
-          // a[c.col]=c.val
-          return a
-        }, {})
+        let trueCells = cells.filter(Boolean)
 
+        // using for loop to optimize
+        let classes = []
+        for (var i = 0; i < trueCells.length; i++) {
+          let cell = trueCells[i]
+          let obj = this.computedClass(trueCells, cell)
+          if (this.selInfo.focus.id === cell.id) {
+            obj['ss-focused-cell'] = true
+          }
+          classes.push(obj)
+        }
 
         return Object({
-          // cells: cells,
-          cells: cells.map(cell => {
-            let klass = {}
-            // TODO: add ad-hoc function
-            if (this.colSchemaMap[cell.col].type === 'list') {
-              klass['ss-list'] = true
-              klass['ss-value-in-list'] = this.colSchemaMap[cell.col].options.indexOf(cell.val) !== -1
-            }
-            return Object.assign(cell, {class: klass})
-          }),
+          cells: trueCells,
           id: row.id,
-          class: Object.assign({
-            'ss-row': true,
-            'ss-first-row': row_i === 0,
-            'ss-last-row': row_i === this.rows.length - 1,
-            'ss-has-data': cells.map(cell => cell.val).filter(Boolean).reduce((a, c) => a || c, false),
-          }, elClassMap)
+          classes: classes,
         })
-
-
       })
     },
     rangeSelected () {
@@ -903,5 +906,21 @@ th{
   padding: 10px;
   /*font-size: 18px;*/
 }
+
+.info-content>div::before {
+  content: "x: \2002";
+  /*content:  attr(class);*/
+  color: red;
+  float: left;
+}
+
+.ss-cell-blur {
+  text-align: right;
+}
+
+.ss-selected-cell {
+  background: #a0c3e26e;
+}
+
 
 </style>
