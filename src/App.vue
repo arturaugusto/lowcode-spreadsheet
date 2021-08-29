@@ -49,14 +49,19 @@
                   v-for="testOption in tests"
                   :key="testOption.id"
                 >
-                  <a @click="test = testOption">{{testOption.id}}</a>
+                  <a @click="setTest(testOption)">{{testOption.id}}</a>
                 </li>
               </ul>
             </div>
 
+            <!-- <pre>test: {{ test }}</pre> -->
+            <!-- <pre>func: {{ func }}</pre> -->
+            <!-- <pre>subTests: {{ subTests }} </pre> -->
+
             <div v-if="test">
+              <span>Avaliable functions: </span>
               <span v-if="funcs && funcs.length" class="select is-primary field mr-2">
-                <select v-model="func" @change="selectFuncTests">
+                <select v-model="func">
                   <option 
                     v-for="funcOption in funcs"
                     :key="funcOption.id" 
@@ -65,14 +70,18 @@
                 </select>
               </span>
               <!-- func: {{func}} -->
-              <div v-if="func && funcTests && funcTests.length">
-                funcTests: {{funcTests.filter(item => item.func === func.id)}}
-              </div>
-              <div>
-                <span v-if="func" class="control block">
-                  <button @click="createFuncTest" class="button is-success">New function test</button>
+              
+              <div class="block box">
+                <!-- subTestsVisible: {{subTestsVisible}} -->
+
+                <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id">
+                  {{subTestVisible}}
+                </div>
+
+
+                <span v-if="func" class="control">
+                  <button @click="createSubTest" class="button is-success">New sub test</button>
                 </span>
-                <!-- funcTest: {{funcTest}} -->
               </div>
 
               <div class="mt-4">
@@ -116,7 +125,7 @@
           <!-- {{ funcs }} -->
           <!-- {{func}} -->
           
-          <span v-if="funcs && funcs.length" class="select is-primary field mr-2">
+          <span>Avaliable functions: </span><span v-if="funcs && funcs.length" class="select is-primary field mr-2">
             <select v-model="func">
               <option 
                 v-for="funcOption in funcs"
@@ -265,10 +274,10 @@
             .then(response => {
               this.tests = response.tests
               if (this.tests.length) this.test = this.tests[0]
-              return db.rel.find('funcTest', test.funcTests)
+              return db.rel.find('subTest', this.test.subTests)
             })
             .then(response => {
-              this.funcTests = response.funcTests
+              this.subTests = response.subTests
             })
             .catch(err => console.log(err))"
           >
@@ -322,15 +331,19 @@ export default {
     this.startSync()
   },
   methods: {
-    selectFuncTests () {
+    setTest (testOption) {
+      this.test = testOption
+      return this.selectSubTests()
+    },
+    selectSubTests () {
       return this.db.rel
-      .find('funcTest', this.test.funcTests)
-      .then(response => {
-        this.funcTests = response.funcTests
-      })
-      .catch(err =>{
-        console.log(err)
-      })
+        .find('subTest', this.test.subTests)
+        .then(response => {
+          this.subTests = response.subTests
+        })
+        .catch(err =>{
+          console.log(err)
+        })
     },
     startSync () {
       // listen changes and manage _rev for local data
@@ -448,24 +461,24 @@ export default {
 
     // factory functions
     
-    createFuncTest () {
+    createSubTest () {
       let id = timeToId.toB64()
-      let funcTest = {
+      let subTest = {
         id: id,
-        func: this.func.id,
         test: this.test.id,
+        func: this.func.id,
       }
-      this.test.funcTests = this.test.funcTests || []
-      this.test.funcTests.push(id)
+      this.test.subTests = this.test.subTests || []
+      this.test.subTests.push(id)
       return this.saveItem('test').then(() => {
-        return this.db.rel.save('funcTest', funcTest)
+        return this.db.rel.save('subTest', subTest)
       }).then(() => {
-        return this.db.rel.find('funcTest', this.test.funcTests)
+        return this.db.rel.find('subTest', this.test.subTests)
       }).then(response => {
-        this.funcTests = response.funcTests
+        this.subTests = response.subTests
       }).then(() => {
         this.$nextTick(() => {
-          this.funcTest = this.funcTests.filter(item => item.id === id)[0]
+          this.subTest = this.subTests.filter(item => item.id === id)[0]
         })
       })
       .catch(err => {
@@ -557,7 +570,13 @@ export default {
     },
   },
   computed: {
-    
+    subTestsVisible () {
+      if (!this.test) return []
+      if (!this.func) return []
+      return this.subTests.filter(subTest => {
+        return subTest.test === this.test.id && subTest.func === this.func.id
+      })
+    }
   },
   data () {
     return {
@@ -575,8 +594,10 @@ export default {
       test: null,
       tests: [],
 
-      funcTest: null,
-      funcTests: [],
+      subTest: null,
+      subTests: [],
+
+      subTestSel: null,
     }
   },
 }

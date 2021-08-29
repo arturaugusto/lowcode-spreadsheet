@@ -19,13 +19,13 @@ export default [
     singular: 'test',
     plural: 'tests',
     relations: {
-      funcTests: {hasMany: {type: 'funcTest', options: {async: true}}},
+      subTests: {hasMany: {type: 'subTest', options: {async: true}}},
       instruments: {belongsTo: {type: 'instrument', options: {async: true}}},
     }
   },
   {
-    singular: 'funcTest',
-    plural: 'funcTests',
+    singular: 'subTest',
+    plural: 'subTests',
     relations: {
       tests: {belongsTo: {type: 'test', options: {async: true}}},
     }
