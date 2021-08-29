@@ -44,12 +44,43 @@
             <div class="tabs">
               <ul>
                 <li><a @click="createTest">+</a></li>
-
+                <li
+                  v-bind:class="{'is-active': test && test.id === testOption.id}"
+                  v-for="testOption in tests"
+                  :key="testOption.id"
+                >
+                  <a @click="test = testOption">{{testOption.id}}</a>
+                </li>
               </ul>
             </div>
-            {{test}}
-            ---
-            {{tests}}
+
+            <div v-if="test">
+              <span v-if="funcs && funcs.length" class="select is-primary field mr-2">
+                <select v-model="func" @change="selectFuncTests">
+                  <option 
+                    v-for="funcOption in funcs"
+                    :key="funcOption.id" 
+                    :value="funcOption">{{funcOption.name}}
+                  </option>
+                </select>
+              </span>
+              <!-- func: {{func}} -->
+              <div v-if="func && funcTests && funcTests.length">
+                funcTests: {{funcTests.filter(item => item.func === func.id)}}
+              </div>
+              <div>
+                <span v-if="func" class="control block">
+                  <button @click="createFuncTest" class="button is-success">New function test</button>
+                </span>
+                <!-- funcTest: {{funcTest}} -->
+              </div>
+
+              <div class="mt-4">
+                <button @click="saveItem('test')" class="button is-success">Save test</button>
+                <button @click="deleteItem('test')" class="ml-2 button is-danger">Delete test</button>
+              </div>
+            </div>
+
           </div>
         </section>
         <footer class="modal-card-foot">
@@ -62,13 +93,9 @@
 
 
 
-
-
-
-
     <!-- Models -->
 
-    <div v-if="model" class="modal" v-bind:class="{'is-active': model}">
+    <div v-if="model && !instrument" class="modal" v-bind:class="{'is-active': model && !instrument}">
       <div class="modal-background"></div>
       <div class="modal-card" style="min-width: 100%;min-height: 100%;">
         <header class="modal-card-head">
@@ -166,9 +193,11 @@
     </div>
 
 
-    <div class="container">
-      <button @click="createModel" class="mt-2 button is-large is-fullwidth is-primary is-outlined">Large</button>
-      <button @click="createInstrument" class="mt-2 button is-large is-fullwidth is-link is-outlined">Large 2</button>
+    <div class="container block">
+      <button @click="createModel" class="button is-large is-fullwidth is-primary is-outlined">Large</button>
+    </div>
+    <div class="container block">
+      <button @click="createInstrument" class="button is-large is-fullwidth is-link is-outlined">Large 2</button>
     </div>
 
 
@@ -223,18 +252,30 @@
             .find('instrument', instrument.id)
             .then(response => {
               this.instrument = response.instruments[0]
+              return db.rel.find('model', instrument.model)
+            })
+            .then(response => {
+              this.model = response.models[0]
+              return db.rel.find('func', this.model.funcs)
+            })
+            .then(response => {
+              this.funcs = response.funcs
               return db.rel.find('test', instrument.tests)
             })
             .then(response => {
               this.tests = response.tests
               if (this.tests.length) this.test = this.tests[0]
+              return db.rel.find('funcTest', test.funcTests)
+            })
+            .then(response => {
+              this.funcTests = response.funcTests
             })
             .catch(err => console.log(err))"
           >
           <span class="panel-icon">
             <i class="fas fa-book" aria-hidden="true"></i>
           </span>
-          {{instrument.name || 'Unnamed instrument'}}
+          {{instrument.serialNumber || 'Unnamed instrument'}}
         </a>
 
 
@@ -281,6 +322,16 @@ export default {
     this.startSync()
   },
   methods: {
+    selectFuncTests () {
+      return this.db.rel
+      .find('funcTest', this.test.funcTests)
+      .then(response => {
+        this.funcTests = response.funcTests
+      })
+      .catch(err =>{
+        console.log(err)
+      })
+    },
     startSync () {
       // listen changes and manage _rev for local data
       this.syncHandler = this.db.changes({
@@ -396,10 +447,38 @@ export default {
     },
 
     // factory functions
+    
+    createFuncTest () {
+      let id = timeToId.toB64()
+      let funcTest = {
+        id: id,
+        func: this.func.id,
+        test: this.test.id,
+      }
+      this.test.funcTests = this.test.funcTests || []
+      this.test.funcTests.push(id)
+      return this.saveItem('test').then(() => {
+        return this.db.rel.save('funcTest', funcTest)
+      }).then(() => {
+        return this.db.rel.find('funcTest', this.test.funcTests)
+      }).then(response => {
+        this.funcTests = response.funcTests
+      }).then(() => {
+        this.$nextTick(() => {
+          this.funcTest = this.funcTests.filter(item => item.id === id)[0]
+        })
+      })
+      .catch(err => {
+        console.log(err)
+      })      
+    },
+
     createTest () {
       let id = timeToId.toB64()
       let test = {
         id: id,
+        date: '',
+        dueDate: '',
         instrument: this.instrument.id,
       }
       this.instrument.tests = this.instrument.tests || []
@@ -478,6 +557,7 @@ export default {
     },
   },
   computed: {
+    
   },
   data () {
     return {
@@ -494,6 +574,9 @@ export default {
 
       test: null,
       tests: [],
+
+      funcTest: null,
+      funcTests: [],
     }
   },
 }
