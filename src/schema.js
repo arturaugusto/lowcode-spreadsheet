@@ -1,5 +1,10 @@
 export default [
   {
+    singular: 'method',
+    plural: 'methods',
+    subTests: {hasMany: {type: 'subTest', options: {async: true}}},
+  },
+  {
     singular: 'model',
     plural: 'models',
     relations: {
@@ -28,6 +33,7 @@ export default [
     plural: 'subTests',
     relations: {
       tests: {belongsTo: {type: 'test', options: {async: true}}},
+      methods: {belongsTo: {type: 'method', options: {async: true}}},
     }
   },
   {

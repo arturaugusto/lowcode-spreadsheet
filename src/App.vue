@@ -1,6 +1,47 @@
 <template>
   <section class="section">
 
+    <!-- Methods -->
+
+    <div v-if="method && !instrument" class="modal" v-bind:class="{'is-active': method && !instrument}">
+      <div class="modal-background"></div>
+      <div class="modal-card" style="min-width: 100%;min-height: 100%;">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Modal title</p>
+          <button @click="goToMain()" class="delete" aria-label="close"></button>
+        </header>
+        <section class="modal-card-body" id="modelCardBody">
+
+          {{method}}
+
+          <div class="field">
+            <label class="label">Name</label>
+            <div class="control">
+              <input v-model="method.name" class="input" type="text" placeholder="Method name">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label">Expression</label>
+            <div class="control">
+              <textarea v-model="method.expr" class="textarea" placeholder="expr"></textarea>
+            </div>
+          </div>
+
+
+          <!-- Content ... -->
+        </section>
+        
+        <footer class="modal-card-foot">
+          <button @click="saveItem('method')" class="button is-success">Save method</button>
+          <button @click="deleteItem('method', blur=true)" class="button is-danger">Delete method</button>
+          <!-- <button class="button">Cancel</button> -->
+        </footer>
+      </div>
+    </div>
+
+
+
 
     <!-- Instruments -->
 
@@ -70,11 +111,21 @@
                 </select>
               </span>
               <!-- func: {{func}} -->
-              
+              {{test}}
               <div class="block box">
                 <!-- subTestsVisible: {{subTestsVisible}} -->
-
                 <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id">
+                  <div class="control">
+                    <span>Avaliable methods: </span> <span v-if="methods && methods.length" class="select is-primary field mr-2">
+                      <select v-model="subTestVisible.method">
+                        <option 
+                          v-for="method in methods"
+                          :key="method.id" 
+                          :value="method">{{method.name}}
+                        </option>
+                      </select>
+                    </span>
+                  </div>
                   {{subTestVisible}}
                 </div>
 
@@ -201,12 +252,16 @@
       </div>
     </div>
 
+    <div class="container block">
+      <button @click="createModel" class="button is-large is-fullwidth is-primary is-outlined">Model</button>
+    </div>
+    
+    <div class="container block">
+      <button @click="createInstrument" class="button is-large is-fullwidth is-primary is-outlined">Item</button>
+    </div>
 
     <div class="container block">
-      <button @click="createModel" class="button is-large is-fullwidth is-primary is-outlined">Large</button>
-    </div>
-    <div class="container block">
-      <button @click="createInstrument" class="button is-large is-fullwidth is-link is-outlined">Large 2</button>
+      <button @click="createMethod" class="button is-large is-fullwidth is-primary is-outlined">Method</button>
     </div>
 
 
@@ -254,6 +309,7 @@
           </span>
           {{model.name || 'Unnamed model'}}
         </a>
+
         <a v-for="instrument in instruments"
           :key="instrument.id"
           class="panel-block"
@@ -284,7 +340,28 @@
           <span class="panel-icon">
             <i class="fas fa-book" aria-hidden="true"></i>
           </span>
-          {{instrument.serialNumber || 'Unnamed instrument'}}
+          {{'instrument: ' + instrument.serialNumber || 'Unnamed instrument'}}
+        </a>
+
+        <a v-for="method in methods"
+          :key="method.id"
+          class="panel-block"
+          @click="db.rel
+            .find('method', method.id)
+            .then(response => {
+              this.method = response.methods[0]
+              return db.rel.find('func', method.funcs)
+            })
+            .then(response => {
+              this.funcs = response.funcs
+              if (this.funcs.length) this.func = this.funcs[0]
+            })
+            .catch(err => console.log(err))"
+          >
+          <span class="panel-icon">
+            <i class="fas fa-book" aria-hidden="true"></i>
+          </span>
+          {{'Method: ' +  method.name || 'Unnamed method'}}
         </a>
 
 
@@ -314,12 +391,13 @@ export default {
     PouchSpreadsheet
   },
   watch: {
-    // func: {
-    //   handler () {
-    //     console.log('change...')
-    //   },
-    //   deep: true,
-    // }
+    inputVars: {
+      handler (val) {
+        if (!this.method) return
+        this.method.inputVars = val
+      },
+      // deep: true,
+    }
   },
   mounted () {
     this.modelComputedCellContent = modelComputedCellContent
@@ -386,7 +464,7 @@ export default {
       })
     },
     goToMain () {
-      ['model', 'instrument'].forEach(type => {
+      ['model', 'instrument', 'method'].forEach(type => {
         let targetSchema = this.schema.filter(item => item.singular === type)[0]
         if (!targetSchema) {
           console.warn('Cannot cancel `'+type+'` because it do not exists in schema.')
@@ -460,6 +538,19 @@ export default {
     },
 
     // factory functions
+
+    createMethod () {
+      return this.db.rel.save('method', {
+        id: timeToId.toB64(),
+        name: 'new method',
+      }).then((response) => {
+        return this.db.rel.find('method', response.id)
+      }).then((response) => {
+        this.method = response.methods[0]
+      }).catch(err => {
+        console.log(err)
+      })
+    },
     
     createSubTest () {
       let id = timeToId.toB64()
@@ -483,7 +574,7 @@ export default {
       })
       .catch(err => {
         console.log(err)
-      })      
+      })
     },
 
     createTest () {
@@ -570,6 +661,34 @@ export default {
     },
   },
   computed: {
+    inputVars () {
+      /*
+      Determine from expression, whitch variables are expected to be
+      provided by user 
+
+      Returns an array
+      */
+
+      if (!this.method || !this.method.expr) return []
+      
+      const exprOperatorsRegex = new RegExp(/[\s+*\-()%^=&|/:]+/)
+      const startWithDigitOrReservedRegex = new RegExp(/^[\d_]/)
+      const exprTokens = 'log base e pi int ceil floor round modulus abs sign min max sin cos tan sinh cosh tanh asin acos atan asinh acosh atanh'.split(' ')
+      
+      const leftHandSideTokens = this.method.expr.split('\n')
+        .filter(item => item.includes('='))
+        .map(item => item.split('=')[0].trim())
+
+      return this.method.expr.split(exprOperatorsRegex)
+        // remove empty
+        .filter(item => item.trim().length)
+        // start with digit
+        .filter(item => !item.match(startWithDigitOrReservedRegex))
+        .filter(item => !exprTokens.includes(item))
+        .filter(item => !leftHandSideTokens.includes(item))
+        .map(item => item.trim())
+        .reduce((a, c) => a.indexOf(c) === -1 ? a.push(c)&&a : a,[])
+    },
     subTestsVisible () {
       if (!this.test) return []
       if (!this.func) return []
@@ -597,7 +716,8 @@ export default {
       subTest: null,
       subTests: [],
 
-      subTestSel: null,
+      method: null,
+      methods: [],
     }
   },
 }
