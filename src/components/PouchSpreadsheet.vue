@@ -92,12 +92,26 @@ export default {
   name: 'HelloWorld',
   props: {
     schema: Object,
-    docsPrefix: String,
-    db: Object,
+    modelValue: Object,
+    // ss: Object,
+    // docid: String,
+    // db: Object,
     windowElId: String,
     computedClass: Function,
   },
+  emits: ['update:modelValue'],
+
   watch: {
+    'schema': function (val, prevVal) {
+      if (JSON.stringify(val) !== JSON.stringify(prevVal)) {
+        let changeColsEvent = this.createChangeColsEvent()
+        this.doEvent(changeColsEvent)
+      }
+    },
+    'modelValue': function (value) {
+      this.events = value.events
+
+    },
     'selInfo.focus': function () {
       let dummyEl = this.$refs.dummy
       let cellEl = this.$refs[this.selInfo.focus.id+'_td']
@@ -117,39 +131,39 @@ export default {
         scrollContainer.scrollTo(0, cumulativeOffsetTop - scrollContainer.innerHeight + cellEl.clientHeight*0.8)
       }
     },
-    cols: function (/*val, valPrev*/) {
-      // console.log(val, valPrev)
-      // if (JSON.stringify(val.sort((a, b) => a-b)) !== JSON.stringify(valPrev.sort((a, b) => a-b))) {
-      //   console.log('aqui2')
-      //   let event = this.createChangeColsEvent()
-      //   this.doEvent(event)
-      // }
+    // cols: function (/*val, valPrev*/) {
+    //   // console.log(val, valPrev)
+    //   // if (JSON.stringify(val.sort((a, b) => a-b)) !== JSON.stringify(valPrev.sort((a, b) => a-b))) {
+    //   //   console.log('aqui2')
+    //   //   let event = this.createChangeColsEvent()
+    //   //   this.doEvent(event)
+    //   // }
 
-      // TODO: make this run less frequently
-      let event = this.createChangeColsEvent()
-      this.doEvent(event)
+    //   // TODO: make this run less frequently
+    //   console.log('aqui')
+    //   let event = this.createChangeColsEvent()
+    //   this.doEvent(event)
 
-    }
+    // }
   },
   created () {
   },
   beforeMount () {
-    this.db.allDocs({
-      include_docs: true,
-      startkey     : 'evt_2_'+this.docsPrefix,
-      endkey       : 'evt_2_'+this.docsPrefix+'\ufff0',
-    }).then(response => {
-      // TODO: filter "dead events", when we undo some of those
-      // and then resume. Maybe filter than when we load it
-      this.events = response.rows.map(item => item.doc)
-      if (this.events.length === 0) {
-        this.insertRow(0)
-      } else {
-        this.events.forEach(() => {
-          this.redo()
-        })
-      }
-    })
+    this.events = []
+    if (this.modelValue.events) {
+      // this.events = JSON.parse(JSON.stringify(this.modelValue.events))
+      this.events = this.modelValue.events
+    }
+
+    if (this.events.length === 0) {
+      this.insertRow(0)
+    } else {
+      this.events.forEach(() => {
+        this.redo()
+      })
+    }
+
+    this.$emit('update:modelValue', {events: this.events})
   },
   mounted () {
     
@@ -249,17 +263,6 @@ export default {
       let evendDoc = {id: timeToId()+randStr(2), e: event}
       this.events.push(evendDoc)
       this.eventIndex = this.events.length
-
-      // save to db
-      this.db.put(Object.assign({
-        _id: 'evt_2_'+this.docsPrefix+evendDoc.id,
-      }, evendDoc))
-      // .then(response => {
-      //   console.log(response)
-      // })
-      .catch(err => {
-        console.log(err)
-      })
     },
     startEditingCell (cell) {
       this.editingCell = cell

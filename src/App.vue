@@ -67,7 +67,18 @@
               </span>
             </div>
             <div class="control">
-              <button @click="(instrument.modelConfirmed = true)&&saveItem('instrument').catch(() => instrument.modelConfirmed = false)" type="submit" class="button is-primary">Confirm</button>
+              <button
+                @click="(instrument.modelConfirmed = true)&&saveItem('instrument')
+                  .then(() => this.db.rel.find('model', this.instrument.model))
+                  .then(response => {
+                    this.model = response.models[0]
+                    return db.rel.find('func', this.model.funcs)
+                  })
+                  .then(response => {
+                    this.funcs = response.funcs
+                  })
+                  .catch(() => instrument.modelConfirmed = false)"
+                type="submit" class="button is-primary">Confirm</button>
             </div>
           </div>
 
@@ -84,7 +95,7 @@
 
             <div class="tabs">
               <ul>
-                <li><a @click="createTest">+</a></li>
+                <li><a @click="createTest">New test +</a></li>
                 <li
                   v-bind:class="{'is-active': test && test.id === testOption.id}"
                   v-for="testOption in tests"
@@ -96,6 +107,7 @@
             </div>
 
             <!-- <pre>test: {{ test }}</pre> -->
+            <!-- <pre>instrument: {{ instrument }}</pre> -->
             <!-- <pre>func: {{ func }}</pre> -->
             <!-- <pre>subTests: {{ subTests }} </pre> -->
 
@@ -111,28 +123,112 @@
                 </select>
               </span>
               <!-- func: {{func}} -->
-              {{test}}
+              <!-- <div>test: {{test}}</div> -->
+              
               <div class="block box">
                 <!-- subTestsVisible: {{subTestsVisible}} -->
+                <!-- {{methods}} -->
                 <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id">
                   <div class="control">
                     <span>Avaliable methods: </span> <span v-if="methods && methods.length" class="select is-primary field mr-2">
                       <select v-model="subTestVisible.method">
                         <option 
                           v-for="method in methods"
-                          :key="method.id" 
+                          :key="method.id"
                           :value="method">{{method.name}}
                         </option>
                       </select>
                     </span>
                   </div>
-                  {{subTestVisible}}
+
+                  <!-- instruments chooser -->
+                  <!-- {{ subTestsVarInstrumentMapsIds }} -->
+                  <!-- {{ instruments }} -->
+                  <!-- {{ funcs }} -->
+
+                  <div v-if="subTestVisible.method" class="block">     
+                    <div 
+                      v-for="inputVar in subTestVisible.method.inputVars"
+                      :key="inputVar"
+                      class="field has-addons has-addons-centered">
+                      
+                      <p class="control">
+                        <span class="button is-static">
+                          {{inputVar}}
+                        </span>
+                      </p>
+
+
+                      <p class="control mr-2">
+                        <span class="select">
+                          <select v-model="subTestVisible.varInstrumentMap[inputVar]">
+                            <option
+                              v-for="instrumentOption in instruments"
+                              :key="instrumentOption.id"
+                              :value="instrumentOption.id"
+                              >{{instrumentOption.serialNumber + ' - ' + 
+                              (models||[]).filter(m => m.id === instrument.model)[0]['name'] }}
+                            </option>
+                          </select>
+                        </span>
+                      </p>
+
+                      <!-- {{ subTestVisible.varInstrumentMap[inputVar] }} -->
+                      
+                      <p v-if="subTestVisible.varInstrumentMap[inputVar]" class="control">
+                        <span class="select">
+                          <select>
+                            <option
+                              v-for="func in funcs.filter(f => f.model === 
+                                (instruments.filter(i => i.id === subTestVisible.varInstrumentMap[inputVar])[0]||{}).model)"
+                              :key="func.id"
+                            >
+                              {{ func.name }}
+                            </option>
+                          </select>
+                        </span>
+                      </p>
+                      <!-- <p class="control">
+                        <a class="button is-primary">
+                          Transfer
+                        </a>
+                      </p> -->
+                    </div>
+                  </div>
+
+                  <!-- {{subTestVisible}} -->
+                  <PouchSpreadsheet
+                    v-if="subTestVisible.method && subTestVisible.ss"
+                    v-model="subTestVisible.ss"
+                    :computedClass="() => Object({})"
+                    :schema="{
+                      cols: [
+                        {
+                          name: 'A', type: 'string'
+                        },
+                        {
+                          name: 'B', type: 'string'
+                        },
+                      ]
+                    }"
+                    
+                  />
+                  <!-- <div>subTest: {{subTestVisible}}</div> -->
+                  <button
+                    @click="saveSubTest(subTestVisible)"
+                    class="button is-small is-success mr-2">Save
+                  </button>
+
+                  <button
+                    @click="(this.subTest=subTestVisible)&&deleteItem('subTest')"
+                    class="button is-small is-danger">Delete
+                  </button>
+
                 </div>
 
-
-                <span v-if="func" class="control">
-                  <button @click="createSubTest" class="button is-success">New sub test</button>
-                </span>
+                <div v-if="func" class="control mt-2">
+                  <button @click="createSubTest" class="button is-link">+ New sub test</button>
+                </div>
               </div>
 
               <div class="mt-4">
@@ -207,11 +303,11 @@
                 </div>
               </div>
             </div>
-
+            <!-- {{func}} -->
             <div v-for="funcSheet in funcs" :key="funcSheet.id" class="">
               <PouchSpreadsheet
                 v-if="func && funcSheet.id === func.id"
-                :docsPrefix="func.id"
+                v-model="func.ss"
                 :computedClass="modelComputedCellContent"
                 :schema="{
                   cols: [
@@ -233,7 +329,7 @@
                     {name: 'IQ End', type: 'string'},
                   ]
                 }"
-                :db="db"
+                
               />
             </div>
             <div class="mt-4">
@@ -391,6 +487,28 @@ export default {
     PouchSpreadsheet
   },
   watch: {
+    subTestsVarInstrumentMapsIds: {
+      handler (ids, prevIds) {
+        if (JSON.stringify(ids) !== JSON.stringify(prevIds)) {
+          this.db.rel.find('instrument', ids)
+          .then(response => {
+            this.instruments = response.instruments
+            let modelsUniqIds = [... new Set(this.instruments.map(instrument => instrument.model))]
+            return this.db.rel.find('model', modelsUniqIds)
+          })
+          .then(response => {
+            this.models = response.models
+            let funcsUniqIds = [... new Set(this.models.map(model => model.funcs).flat())]
+            return this.db.rel.find('funcs', funcsUniqIds)
+          })
+          .then(response => {
+            this.funcs = response.funcs
+          })
+          .catch(err => console.log(err))
+        }
+      },
+      deep: true,
+    },
     inputVars: {
       handler (val) {
         if (!this.method) return
@@ -409,6 +527,20 @@ export default {
     this.startSync()
   },
   methods: {
+    saveSubTest (subTest) {
+      // Object.assign(response.subTests[0], subTest)
+      return this.db.rel
+        .find('subTest', subTest.id)
+        .then(response => {
+          let data = response.subTests[0]
+          // data.ss = subTest.ss
+          delete subTest.id
+          delete subTest.rev
+          Object.assign(data, subTest)
+          return this.db.rel.save('subTest', data)
+        })
+        .catch(err => console.log(err))
+    },
     setTest (testOption) {
       this.test = testOption
       return this.selectSubTests()
@@ -464,7 +596,7 @@ export default {
       })
     },
     goToMain () {
-      ['model', 'instrument', 'method'].forEach(type => {
+      ['model', 'instrument', 'method', 'func'].forEach(type => {
         let targetSchema = this.schema.filter(item => item.singular === type)[0]
         if (!targetSchema) {
           console.warn('Cannot cancel `'+type+'` because it do not exists in schema.')
@@ -558,19 +690,18 @@ export default {
         id: id,
         test: this.test.id,
         func: this.func.id,
+        ss: {},
+        varInstrumentMap: {},
       }
       this.test.subTests = this.test.subTests || []
       this.test.subTests.push(id)
-      return this.saveItem('test').then(() => {
+      return this.saveItem('test')
+      .then(() => {
         return this.db.rel.save('subTest', subTest)
       }).then(() => {
         return this.db.rel.find('subTest', this.test.subTests)
       }).then(response => {
         this.subTests = response.subTests
-      }).then(() => {
-        this.$nextTick(() => {
-          this.subTest = this.subTests.filter(item => item.id === id)[0]
-        })
       })
       .catch(err => {
         console.log(err)
@@ -641,6 +772,7 @@ export default {
         name: id,
         unit: '',
         model: this.model.id,
+        ss: {},
       }
       this.model.funcs = this.model.funcs || []
       this.model.funcs.push(id)
@@ -661,6 +793,20 @@ export default {
     },
   },
   computed: {
+    subTestsVarInstrumentMaps () {
+      if (!this.subTests) return []
+      return this.subTests.map(subTest => {
+        return subTest.varInstrumentMap
+      })
+    },
+    subTestsVarInstrumentMapsIds () {
+      let allIds = this.subTestsVarInstrumentMaps.map(item => 
+        Object.keys(item).map(v => item[v])
+      )
+      .flat()
+      let uniqIds = [...new Set(allIds)]
+      return uniqIds
+    },
     inputVars () {
       /*
       Determine from expression, whitch variables are expected to be
@@ -718,6 +864,7 @@ export default {
 
       method: null,
       methods: [],
+
     }
   },
 }
