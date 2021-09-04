@@ -125,11 +125,11 @@
               <!-- func: {{func}} -->
               <!-- <div>test: {{test}}</div> -->
               
-              <div class="block box">
+              <div class="block box has-background-white-ter">
                 <!-- subTestsVisible: {{subTestsVisible}} -->
                 <!-- {{methods}} -->
                 <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id">
-                  <div class="control">
+                  <div class="control block">
                     <span>Avaliable methods: </span> <span v-if="methods && methods.length" class="select is-primary field mr-2">
                       <select v-model="subTestVisible.method">
                         <option 
@@ -142,6 +142,7 @@
                   </div>
 
                   <!-- instruments chooser -->
+                  <!-- {{ subTestsVarInstrumentMaps }} -->
                   <!-- {{ subTestsVarInstrumentMapsIds }} -->
                   <!-- {{ instruments }} -->
                   <!-- {{ funcs }} -->
@@ -159,7 +160,7 @@
                       </p>
 
 
-                      <p class="control mr-2">
+                      <p v-if="models && models.length" class="control mr-2">
                         <span class="select">
                           <select v-model="subTestVisible.varInstrumentMap[inputVar]">
                             <option
@@ -167,7 +168,7 @@
                               :key="instrumentOption.id"
                               :value="instrumentOption.id"
                               >{{instrumentOption.serialNumber + ' - ' + 
-                              (models||[]).filter(m => m.id === instrument.model)[0]['name'] }}
+                              ((models||[]).filter(m => m.id === instrument.model)[0]||{})['name'] }}
                             </option>
                           </select>
                         </span>
@@ -179,7 +180,7 @@
                         <span class="select">
                           <select>
                             <option
-                              v-for="func in funcs.filter(f => f.model === 
+                              v-for="func in funcsForSubTestsVars.filter(f => f.model === 
                                 (instruments.filter(i => i.id === subTestVisible.varInstrumentMap[inputVar])[0]||{}).model)"
                               :key="func.id"
                             >
@@ -216,7 +217,7 @@
                   <!-- <div>subTest: {{subTestVisible}}</div> -->
                   <button
                     @click="saveSubTest(subTestVisible)"
-                    class="button is-small is-success mr-2">Save
+                    class="button is-small is-success">Save
                   </button>
 
                   <button
@@ -260,7 +261,7 @@
         </header>
         <section class="modal-card-body" id="modelCardBody">
 
-          <!-- {{model}} -->
+          {{model}}
 
           <div class="field">
             <label class="label">Name</label>
@@ -270,6 +271,7 @@
           </div>
           
           <!-- {{ funcs }} -->
+
           <!-- {{func}} -->
           
           <span>Avaliable functions: </span><span v-if="funcs && funcs.length" class="select is-primary field mr-2">
@@ -490,19 +492,20 @@ export default {
     subTestsVarInstrumentMapsIds: {
       handler (ids, prevIds) {
         if (JSON.stringify(ids) !== JSON.stringify(prevIds)) {
-          this.db.rel.find('instrument', ids)
+          // console.log(ids)
+          return this.db.rel.find('instrument', ids)
           .then(response => {
-            this.instruments = response.instruments
-            let modelsUniqIds = [... new Set(this.instruments.map(instrument => instrument.model))]
+            // this.instruments = response.instruments
+            let modelsUniqIds = [... new Set(response.instruments.map(instrument => instrument.model))]
             return this.db.rel.find('model', modelsUniqIds)
           })
           .then(response => {
-            this.models = response.models
-            let funcsUniqIds = [... new Set(this.models.map(model => model.funcs).flat())]
-            return this.db.rel.find('funcs', funcsUniqIds)
+            // this.models = response.models
+            let funcsUniqIds = [... new Set(response.models.map(model => model.funcs).flat())]
+            return this.db.rel.find('func', funcsUniqIds)
           })
           .then(response => {
-            this.funcs = response.funcs
+            this.funcsForSubTestsVars = response.funcs
           })
           .catch(err => console.log(err))
         }
@@ -542,8 +545,9 @@ export default {
         .catch(err => console.log(err))
     },
     setTest (testOption) {
-      this.test = testOption
+      this.test = this.tests.filter(item => item.id === testOption.id)[0]
       return this.selectSubTests()
+      // .then(() => {})
     },
     selectSubTests () {
       return this.db.rel
@@ -794,12 +798,29 @@ export default {
   },
   computed: {
     subTestsVarInstrumentMaps () {
+      /*
+      return array of objects that map variables for selected 
+      method at subTests to instrument
+
+      eg:
+
+      [ { "VRp": "-MicZz5f", "Rp": "-MicZz5f", "VI": "-MicZz5f" },
+        { "VRp": "-MicZz5f" }, { "VRp": "-MicZz5f" },
+        { "Rp": "-MicZz5f", "VRp": "-MicZz5f", "VI": "-MicZz5f" } ]
+
+      */
       if (!this.subTests) return []
       return this.subTests.map(subTest => {
         return subTest.varInstrumentMap
       })
     },
     subTestsVarInstrumentMapsIds () {
+      /*
+      Uniq ids for `subTestsVarInstrumentMaps`
+
+      [ "-MicZz5f" ]
+
+      */
       let allIds = this.subTestsVarInstrumentMaps.map(item => 
         Object.keys(item).map(v => item[v])
       )
@@ -864,6 +885,8 @@ export default {
 
       method: null,
       methods: [],
+
+      funcsForSubTestsVars: [],
 
     }
   },
