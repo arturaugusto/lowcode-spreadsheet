@@ -731,7 +731,8 @@ export default {
     },
     cols () {
       return this.schema.cols.map(col => col.name)
-        .concat(this.rows.map(row => row.cells.map(cell => cell.col)))
+        // TODO: check if this line is necessary
+        // .concat(this.rows.map(row => row.cells.map(cell => cell.col)))
         .flat()
         .reduce((a, c) => a.indexOf(c) !== -1 ? a : a.push(c)&&a, [])
     },
