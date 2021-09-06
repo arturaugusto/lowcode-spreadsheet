@@ -172,7 +172,9 @@ export default {
     doChangeCols (item) {
       let rowMatch = this.rows.filter(row => row.id === item[0])[0]
       if (rowMatch) {
-        rowMatch.cells.push({id: item[1], col: item[2]})
+        if (!rowMatch.cells.filter(row => row.col === item[2]).length) {
+          rowMatch.cells.push({id: item[1], col: item[2]})
+        }
       }
     },
     createChangeColsEvent () {

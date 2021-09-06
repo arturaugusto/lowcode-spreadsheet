@@ -8,7 +8,7 @@
       </header>
       <section class="modal-card-body" id="modelCardBody">
 
-        {{method}}
+        <!-- {{method}} -->
 
         <div class="field">
           <label class="label">Name</label>
@@ -43,7 +43,7 @@ export default {
   props: {
     parentMethod: Object,
   },
-  emits: ['saveItem', 'goToMain'],
+  emits: ['saveItem', 'goToMain', 'deleteItem'],
   watch: {
     inputVars: {
       handler (val) {

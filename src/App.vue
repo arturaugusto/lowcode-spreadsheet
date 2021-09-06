@@ -26,104 +26,17 @@
 
 
     <!-- Models -->
+    <Model
+      :db="db"
+      @goToMain="goToMain"
+      :parentModel="model"
+      @saveItem="saveItem"
+      @deleteItem="deleteItem"
+      v-if="model && !instrument"
+    />
 
-    <div v-if="model && !instrument" class="modal" v-bind:class="{'is-active': model && !instrument}">
-      <div class="modal-background"></div>
-      <div class="modal-card" style="min-width: 100%;min-height: 100%;">
-        <header class="modal-card-head">
-          <p class="modal-card-title">Modal title</p>
-          <button @click="goToMain()" class="delete" aria-label="close"></button>
-        </header>
-        <section class="modal-card-body" id="modelCardBody">
 
-          <!-- {{model}} -->
-
-          <div class="field">
-            <label class="label">Name</label>
-            <div class="control">
-              <input v-model="model.name" class="input" type="text" placeholder="Model name">
-            </div>
-          </div>
-          
-          <!-- {{ funcs }} -->
-
-          <!-- {{func}} -->
-          
-          <span>Avaliable functions: </span><span v-if="funcs && funcs.length" class="select is-primary field mr-2">
-            <select v-model="func">
-              <option 
-                v-for="funcOption in funcs"
-                :key="funcOption.id" 
-                :value="funcOption">{{funcOption.name}}
-              </option>
-            </select>
-          </span>
-
-          <span class="control">
-            <button @click="createFunc" class="button is-success">New function</button>
-          </span>
-
-          <div v-if="func" class="box has-background-white-ter">
-            <div class="columns is-desktop">
-
-              <div class="column is-10">
-                <div class="control">
-                  <label class="label">Function name</label>
-                  <input v-model="func.name" class="input" type="text" placeholder="Function name">
-                </div>
-              </div>
-
-              <div class="column is-2">
-                <div class="control">
-                  <label class="label">Unit</label>
-                  <input v-model="func.unit" class="input" type="text" placeholder="Unit" style="max-width: 128px;">
-                </div>
-              </div>
-            </div>
-            <!-- {{func}} -->
-            <div v-for="funcSheet in funcs" :key="funcSheet.id" class="">
-              <PouchSpreadsheet
-                v-if="func && funcSheet.id === func.id"
-                v-model="func.ss"
-                :computedClass="modelComputedCellContent"
-                :schema="{
-                  cols: [
-                    // {
-                    //   name: 'A', type: 'list', options: ['lala', 'bah']
-                    // },
-                    {name: 'Description', type: 'string'},
-                    {name: 'Range', type: 'string'},
-                    {name: 'Start', type: 'string'},
-                    {name: 'Full Range', type: 'string'},
-                    {name: 'Uncertainty', type: 'string'},
-                    {name: 'Distribution', type: 'string'},
-                    {name: 'Uncertainty', type: 'string'},
-                    {name: 'a', type: 'string'},
-                    {name: 'b', type: 'string'},
-                    {name: 'c', type: 'string'},
-                    {name: 'Influence Quantity', type: 'string'},
-                    {name: 'IQ Start', type: 'string'},
-                    {name: 'IQ End', type: 'string'},
-                  ]
-                }"
-                
-              />
-            </div>
-            <div class="mt-4">
-              <button @click="saveItem('func')" class="button is-success">Save function</button>
-              <button @click="deleteItem('func')" class="button is-danger">Delete function</button>
-            </div>
-          </div>
-
-          <!-- Content ... -->
-        </section>
-        <footer class="modal-card-foot">
-          <button @click="saveItem('model')" class="button is-success">Save model</button>
-          <button @click="deleteItem('model', blur=true)" class="button is-danger">Delete model</button>
-          <!-- <button class="button">Cancel</button> -->
-        </footer>
-      </div>
-    </div>
+    <!-- Create itens -->
 
     <div class="container block">
       <button @click="createModel" class="button is-large is-fullwidth is-primary is-outlined">Model</button>
@@ -136,8 +49,6 @@
     <div class="container block">
       <button @click="createMethod" class="button is-large is-fullwidth is-primary is-outlined">Method</button>
     </div>
-
-
 
 
 
@@ -224,9 +135,9 @@
 </template>
 
 <script>
-import PouchSpreadsheet from './components/PouchSpreadsheet.vue'
-import Instrument from './components/Instrument.vue'
-import Method from './components/Method.vue'
+import Model from '@/components/Model.vue'
+import Method from '@/components/Method.vue'
+import Instrument from '@/components/Instrument.vue'
 import PouchDB from 'pouchdb'
 import pouchdbUpsert from 'pouchdb-upsert'
 import relationalPouch from 'relational-pouch'
@@ -237,19 +148,16 @@ PouchDB.plugin(relationalPouch)
 
 import timeToId from './timeToId.js'
 
-import modelComputedCellContent from './modelComputedCellContent.js'
-
 export default {
   name: 'App',
   components: {
-    PouchSpreadsheet,
+    Model,
     Method,
     Instrument,
   },
   watch: {
   },
   mounted () {
-    this.modelComputedCellContent = modelComputedCellContent
     this.db = new PouchDB('my_database')
     this.schema = schema
     this.db.setSchema(this.schema)
@@ -373,7 +281,7 @@ export default {
         if (response && response.id === this[type].id) {
           this[type].rev = response.rev
         }
-        return new Promise(() => this[type])
+        return Promise.resolve(this[type])
       }).catch(function (err) {
         if (err.code === 409) { // conflict
           // handle the conflict
@@ -408,6 +316,7 @@ export default {
         modelConfirmed: false,
         model: undefined,
         activeTestId: undefined,
+        tests: [],
       }).then((response) => {
         return this.db.rel.find('instrument', response.id)
       }).then((response) => {
@@ -429,33 +338,6 @@ export default {
         console.log(err)
       })
     },
-    createFunc () {
-      let id = timeToId.toB64()
-      let func = {
-        id: id,
-        // name: '',
-        name: id,
-        unit: '',
-        model: this.model.id,
-        ss: {},
-      }
-      this.model.funcs = this.model.funcs || []
-      this.model.funcs.push(id)
-      return this.saveItem('model').then(() => {
-        return this.db.rel.save('func', func)
-      }).then(() => {
-        return this.db.rel.find('func', this.model.funcs)
-      }).then(response => {
-        this.funcs = response.funcs
-      }).then(() => {
-        this.$nextTick(() => {
-          this.func = this.funcs.filter(item => item.id === id)[0]
-        })
-      })
-      .catch(err => {
-        console.log(err)
-      })
-    },
   },
   computed: {
 
@@ -467,17 +349,17 @@ export default {
       model: null,
       models: [],
       
-      func: null,
-      funcs: [],
+      // func: null,
+      // funcs: [],
       
       instrument: null,
       instruments: [],
 
-      test: null,
-      tests: [],
+      // test: null,
+      // tests: [],
 
-      subTest: null,
-      subTests: [],
+      // subTest: null,
+      // subTests: [],
 
       method: null,
       methods: [],

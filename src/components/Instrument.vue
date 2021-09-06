@@ -6,7 +6,7 @@
         <p class="modal-card-title">Modal title</p>
         <button @click="$emit('goToMain')" class="delete" aria-label="close"></button>
       </header>
-      <section class="modal-card-body" id="modelCardBody">
+      <section class="modal-card-body">
 
         <div v-if="!instrument.modelConfirmed" class="field has-addons">
           <div class="control">
@@ -22,17 +22,7 @@
           </div>
           <div class="control">
             <button
-              @click="(instrument.modelConfirmed = true)
-                &&$emit('saveItem', 'instrument', instrument)
-                .then(() => this.db.rel.find('model', this.instrument.model))
-                .then(response => {
-                  this.model = response.models[0]
-                  return this.db.rel.find('func', this.model.funcs)
-                })
-                .then(response => {
-                  this.funcs = response.funcs
-                })
-                .catch(() => instrument.modelConfirmed = false)"
+              @click="confirmInstrumentModel"
               type="submit" class="button is-primary">Confirm</button>
           </div>
         </div>
@@ -50,7 +40,7 @@
 
           <div class="tabs">
             <ul>
-              <li><a @click="createTest($event)">New test +</a></li>
+              <li><a @click="createTest">New test +</a></li>
               <li
                 v-bind:class="{'is-active': test && test.id === testOption.id}"
                 v-for="testOption in tests"
@@ -66,6 +56,7 @@
           <!-- <pre>func: {{ func }}</pre> -->
           <!-- <pre>subTests: {{ subTests }} </pre> -->
 
+          <!-- {{test ? test.rev : ''}} -->
           <div v-if="test">
             <span>Function: </span>
             <span v-if="funcs && funcs.length" class="select is-primary field mr-2">
@@ -80,10 +71,11 @@
             <!-- func: {{func}} -->
             <!-- <div>test: {{test}}</div> -->
             
-            <div class="block box has-background-white-ter">
+            <div v-if="subTests.length" class="block">
               <!-- subTestsVisible: {{subTestsVisible}} -->
               <!-- {{methods}} -->
-              <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id">
+              <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id" class="box has-background-white-ter">
+                <!-- {{subTestVisible.rev}} -->
                 <div class="control block mt-2">
                   <span>Method: </span> <span v-if="methods && methods.length" class="select is-primary field mr-2">
                     <select v-model="subTestVisible.method">
@@ -172,44 +164,43 @@
                 <!-- <div>subTest: {{subTestVisible}}</div> -->
                 <button
                   @click="log(subTestVisible)"
-                  class="button is-small is-link">Calc
+                  class="button is-small is-link mt-2">Calc
                 </button>
 
-                <button
+                <!-- <button
                   @click="saveSubTest(subTestVisible)"
                   class="button is-small is-success">Save
-                </button>
+                </button> -->
 
                 <button
                   @click="db.rel.del('subTest', subTestVisible)
                     .then(() => this.subTests = this.subTests.filter(item => item.id !== subTestVisible.id))"
-                  class="button is-small is-danger">Delete
+                  class="button is-small is-danger ml-1 mt-2">Delete
                 </button>
 
               </div>
 
-
-              <div v-if="func" class="control mt-2">
-                TODO: salvar todos os subTests antes de criar um novo
-                <button @click="createSubTest" class="button is-link">+ New sub test</button>
-              </div>
             </div>
 
             <div class="mt-4">
-              <button @click="saveTest" class="button is-success">Save test</button>
+              <!-- <button @click="saveSubTestsAndTest" class="button is-success">Save test</button> -->
+              <button v-if="func" @click="createSubTest" class="button is-link">+ New sub test</button>
+
               <button
                 @click="db.rel.del('test', test)
                   .then(() => this.tests = this.tests.filter(item => item.id !== test.id))"
                 class="ml-2 button is-danger">Delete test
               </button>
+
+
             </div>
           </div>
 
         </div>
       </section>
       <footer class="modal-card-foot">
-        <button @click="$emit('saveItem', 'instrument', instrument)" class="button is-success">Save instrument</button>
-        <button @click="deleteItem('instrument', blur=true)" class="button is-danger">Delete instrument</button>
+        <button @click="saveSubTestsAndTest().then(response => $emit('saveItem', 'instrument', instrument))" class="button is-success">Save</button>
+        <button @click="$emit('deleteItem', 'instrument', blur=true)" class="button is-danger">Delete</button>
         <!-- <button class="button">Cancel</button> -->
       </footer>
     </div>
@@ -229,7 +220,7 @@ export default {
     parentInstrument: Object,
     methods: Array,
   },
-  emits: ['saveItem', 'goToMain'],
+  emits: ['saveItem', 'goToMain', 'deleteItem'],
 
   watch: {
     subTestsVarInstrumentMapsIds: {
@@ -271,7 +262,6 @@ export default {
       subTests: [],
 
       method: null,
-      // methods: [],
 
       funcsForSubTestsVars: [],
     }
@@ -286,15 +276,24 @@ export default {
     })
     .then(response => {
       this.funcs = response.funcs
+      if (this.funcs) {
+        this.func = this.funcs[0]
+      }
       return this.db.rel.find('test', this.instrument.tests)
     })
     .then(response => {
       this.tests = response.tests
-      if (this.tests.length) this.test = this.tests[0]
-      return this.db.rel.find('subTest', this.test.subTests)
+      if (this.tests.length) {
+        this.test = this.tests[0]
+        if (this.test.subTests) {
+          return this.db.rel.find('subTest', this.test.subTests)
+        }
+      }
     })
     .then(response => {
-      this.subTests = response.subTests
+      if (response) {
+        this.subTests = response.subTests
+      }
     })
     .catch(err => console.log(err))
 
@@ -302,18 +301,41 @@ export default {
 
   },
   mounted () {
-    this.db.rel
-      .find('instrument')
-      .then(response => this.instruments = response.instruments)
-
-    this.db.rel
-      .find('model')
-      .then(response => this.models = response.models)
-
+    Promise.all([this.db.rel.find('instrument'), this.db.rel.find('model')])
+    .then(responses => {
+      this.instruments = responses[0].instruments
+      this.models = responses[1].models
+    })
   },
   methods: {
-    createTest ($event) {
-      console.log($event)
+    compareSubset (a, b) {
+      /*
+      Deep compare objects removing some keys
+      */
+      const replacer = (k, v) => k === 'id' ? undefined : v
+      return JSON.stringify(a, replacer) === JSON.stringify(b, replacer)
+    },
+    confirmInstrumentModel () {
+      // let p = this.$emit('saveItem', 'instrument', this.instrument)
+      this.db.rel.save('instrument', this.instrument)
+      .then(response => {
+        this.instrument.rev = response.rev
+        return this.db.rel.find('model', this.instrument.model)
+      })
+      .then(response => {
+        this.model = response.models[0]
+        return this.db.rel.find('func', this.model.funcs)
+      })
+      .then(response => {
+        this.funcs = response.funcs
+        this.instrument.modelConfirmed = true
+      })
+      .catch(err => {
+        console.log(err)
+        this.instrument.modelConfirmed = false
+      })
+    },
+    createTest () {
       let id = timeToId.toB64()
       let test = {
         id: id,
@@ -329,7 +351,7 @@ export default {
         this.instrument.rev = response.rev
         return this.db.rel.save('test', test)
       }).then(response => {
-        this.test.rev = response.rev
+        test.rev = response.rev
         return this.db.rel.find('test', this.instrument.tests)
       }).then(response => {
         this.tests = response.tests
@@ -349,28 +371,35 @@ export default {
     saveTest () {
       return this.db.rel.find('test', this.test.id)
       .then(response => {
-        this.test = response.tests[0]
-        if (JSON.stringify(response.tests[0]) !== JSON.stringify(this.test)) {
+        if (!this.compareSubset(response.tests[0], this.test)) {
           return this.db.rel.save('test', this.test)
         }
         console.log('test untouched')
-        return new Promise(() => response)
+        return Promise.resolve(this.test)
+      })
+      .then(response => {
+        this.test.rev = response.rev
+        return Promise.resolve(this.test)
+      })
+    },
+    selectSubTests () {
+      return this.db.rel
+      .find('subTest', this.test.subTests)
+      .then(response => {
+        this.subTests = response.subTests
+      })
+      .catch(err =>{
+        console.log(err)
       })
     },
     saveSubTest (subTest) {
       return this.db.rel.find('subTest', subTest.id)
       .then(response => {
-        // console.log(JSON.stringify(response.subTests[0]))
-        // console.log('-----')
-        // console.log(JSON.stringify(subTest))
-        if (JSON.stringify(response.subTests[0]) !== JSON.stringify(subTest)) {
-          // Object.assign(response.subTests[0], subTest)
+        if (!this.compareSubset(response.subTests[0], subTest)) {
           return this.db.rel.save('subTest', subTest)
         }
         console.log('subTest untouched')
-        // return new Promise(() => subTest)
         return Promise.resolve(subTest)
-        // return this.db.rel.save('subTest', subTest)
       })
       .then(response => {
         subTest.rev = response.rev
@@ -378,18 +407,11 @@ export default {
       })
       .catch(err => console.log(err))
     },
-    selectSubTests () {
-      return this.db.rel
-        .find('subTest', this.test.subTests)
-        .then(response => {
-          this.subTests = response.subTests
-        })
-        .catch(err =>{
-          console.log(err)
-        })
-    },
     saveSubTests () {
       return Promise.all(this.subTestsVisible.map(this.saveSubTest))
+    },
+    saveSubTestsAndTest () {
+      return this.saveSubTests().then(this.saveTest).catch(err => this.log(err))
     },
     createSubTest () {
 
@@ -406,24 +428,13 @@ export default {
       this.test.subTests = this.test.subTests || []
       this.test.subTests.push(id)
 
-      return this.saveSubTests()
+      return this.saveSubTestsAndTest()
       .then(() => {
-        console.log('aqui')
-        return this.db.rel.save('instrument', this.instrument)
-      })
-      .then(response => {
-        this.instrument.rev = response.rev
-        return this.db.rel.save('test', this.test)
-      })
-      .then(response => {
-        this.test.rev = response.rev
         return this.db.rel.save('subTest', subTest)
       }).then(response => {
         subTest.rev = response.rev
+        this.subTests.push(subTest)
         return this.db.rel.find('subTest', this.test.subTests)
-      }).then(response => {
-        console.log(response)
-        this.subTests = response.subTests
       })
       .catch(err => {
         console.log(err)
