@@ -1,7 +1,7 @@
 <template>
 
   <section class="section has-background-primary">
-    ...
+    Beta
   </section>
 
   <section class="section">

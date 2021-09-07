@@ -921,10 +921,11 @@ th{
 }
 
 .info-content>div::before {
-  content: "x: \2002";
+  /*content: "x: \2002";*/
+  content: "x:";
   /*content:  attr(class);*/
   color: red;
-  float: left;
+  /*float: left;*/
 }
 
 .ss-cell-blur {

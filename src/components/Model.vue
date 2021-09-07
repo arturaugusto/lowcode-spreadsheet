@@ -62,19 +62,18 @@
                   // {
                   //   name: 'A', type: 'list', options: ['lala', 'bah']
                   // },
-                  {name: 'Description', type: 'string'},
-                  {name: 'Range', type: 'string'},
-                  {name: 'Start', type: 'string'},
-                  {name: 'Full Range', type: 'string'},
-                  {name: 'Uncertainty', type: 'string'},
-                  {name: 'Distribution', type: 'string'},
-                  {name: 'Uncertainty', type: 'string'},
+                  {name: 'rangeDesc', type: 'string'},
+                  {name: 'range', type: 'string'},
+                  {name: 'rangeStart', type: 'string'},
+                  {name: 'rangeFull', type: 'string'},
+                  {name: 'uncDesc', type: 'string'},
+                  {name: 'dist', type: 'string'},
                   {name: 'a', type: 'string'},
                   {name: 'b', type: 'string'},
                   {name: 'c', type: 'string'},
-                  {name: 'Influence Quantity', type: 'string'},
-                  {name: 'IQ Start', type: 'string'},
-                  {name: 'IQ End', type: 'string'},
+                  {name: 'influence', type: 'string'},
+                  {name: 'influenceStart', type: 'string'},
+                  {name: 'influenceEnd', type: 'string'},
                 ]
               }"
               

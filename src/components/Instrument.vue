@@ -157,16 +157,21 @@
                   v-model="subTestVisible.ss"
                   :computedClass="() => Object({})"
                   :schema="{
-                    cols: [{name: 'point', type: 'string'}]
-                      .concat(methodByIdMap[subTestVisible.method]
-                        .inputVars
-                        .map(inputVar => Object({name: inputVar, type: 'string'}))
-                      )
-
+                    cols: [
+                      {name: 'range', type: 'string'},
+                      {name: 'point', type: 'string'},
+                    ]
+                    .concat(methodByIdMap[subTestVisible.method]
+                      .inputVars
+                      .map(inputVar => Object({name: inputVar, type: 'string'}))
+                    )
                   }"
                   
                 />
-                <!-- <div>subTest: {{subTestVisible}}</div> -->
+                <pre>{{ genTestData(subTestVisible)}}</pre>
+                <pre>{{ genTestData(funcs)}}</pre>
+                <pre>{{ methods }}</pre>
+
                 <button
                   @click="calc(subTestVisible)"
                   class="button is-small is-link mt-2">Calc
@@ -312,6 +317,9 @@ export default {
     })
   },
   methods: {
+    genTestData (data) {
+      return JSON.stringify(data, (k, v) => ['events', 'classes', 'rev'].indexOf(k)  !== -1 ? undefined : v, 2)
+    },
     calc (subTestVisible) {
       console.log(subTestVisible)
       console.log(this.funcs)
