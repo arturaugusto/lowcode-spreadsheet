@@ -163,14 +163,15 @@ export default {
       })
     }
 
-    this.$emit('update:modelValue', {events: this.events})
+    this.$emit('update:modelValue', {events: this.events, matrix: this.matrixVisible})
   },
   mounted () {
     
   },
   methods: {
     doChangeCols (item) {
-      let rowMatch = this.rows.filter(row => row.id === item[0])[0]
+      // let rowMatch = this.rows.filter(row => row.id === item[0])[0]
+      let rowMatch = this.rowsById[item[0]]
       if (rowMatch) {
         if (!rowMatch.cells.filter(row => row.col === item[2]).length) {
           rowMatch.cells.push({id: item[1], col: item[2]})
@@ -723,6 +724,12 @@ export default {
     }
   },
   computed: {
+    rowsById () {
+      return this.rows.reduce((a, c) => {
+        if (!a[c.id]) a[c.id] = c
+        return a
+      }, {})
+    },
     colSchemaMap () {
       return this.cols.reduce((a, c) => {
         let schema = this.schema.cols.filter(x => x.name === c)[0]||{type: 'string', name: c}

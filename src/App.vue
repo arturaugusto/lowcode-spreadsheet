@@ -1,5 +1,12 @@
 <template>
+
+  <section class="section has-background-primary">
+    ...
+  </section>
+
   <section class="section">
+
+
 
     <!-- Methods -->
     <Method 
@@ -11,7 +18,6 @@
       v-if="method && !instrument"
     />
 
-
     <!-- Instruments -->
     <Instrument
       :db="db"
@@ -22,8 +28,6 @@
       @deleteItem="deleteItem"
       v-if="instrument"
     />
-
-
 
     <!-- Models -->
     <Model
@@ -371,11 +375,9 @@ export default {
 
 <style>
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
-  margin-top: 60px;
+  /*-webkit-font-smoothing: antialiased;*/
+  /*-moz-osx-font-smoothing: grayscale;*/
+  
 }
 
 </style>

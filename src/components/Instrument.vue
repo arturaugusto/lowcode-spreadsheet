@@ -74,7 +74,7 @@
             <div v-if="subTests.length" class="block">
               <!-- subTestsVisible: {{subTestsVisible}} -->
               <!-- {{methods}} -->
-              <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id" class="box has-background-white-ter">
+              <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id" class="box has-background-grey-lighter  ">
                 <!-- {{subTestVisible.rev}} -->
                 <div class="control block mt-2">
                   <span>Method: </span> <span v-if="methods && methods.length" class="select is-primary field mr-2">
@@ -82,7 +82,7 @@
                       <option 
                         v-for="method in methods.filter(item => item.inputVars && item.inputVars.length)"
                         :key="method.id"
-                        :value="method">{{method.name}}
+                        :value="method.id">{{method.name}}
                       </option>
                     </select>
                   </span>
@@ -97,11 +97,11 @@
                 <!-- {{ instruments }} -->
                 <!-- {{ funcs }} -->
                 <div
-                  v-if="subTestVisible.method"
+                  v-if="methodByIdMap[subTestVisible.method]"
                   class="block"
                 >
                   <div 
-                    v-for="inputVar in subTestVisible.method.inputVars"
+                    v-for="inputVar in methodByIdMap[subTestVisible.method].inputVars"
                     :key="inputVar"
                     class="field has-addons has-addons-centered">
                     
@@ -129,7 +129,6 @@
                     <!-- {{ subTestVisible.varInstrumentMap[inputVar] }} -->
 
                     <!-- function chooser -->
-                    
                     <p v-if="subTestVisible.varInstrumentMap[inputVar] && funcsForSubTestsVars && funcsForSubTestsVars.length" class="control">
                       <span class="select">
                         <select v-model="subTestVisible.varFuncMap[inputVar]">
@@ -137,6 +136,7 @@
                             v-for="func in funcsForSubTestsVars.filter(f => f.model === 
                               (instruments.filter(i => i.id === subTestVisible.varInstrumentMap[inputVar])[0]||{}).model)"
                             :key="func.id"
+                            :value="func.id"
                           >
                             {{ func.name }}
                           </option>
@@ -153,17 +153,22 @@
 
                 <!-- {{subTestVisible}} -->
                 <PouchSpreadsheet
-                  v-if="subTestVisible && subTestVisible.method && subTestVisible.ss"
+                  v-if="subTestVisible && methodByIdMap[subTestVisible.method] && subTestVisible.ss"
                   v-model="subTestVisible.ss"
                   :computedClass="() => Object({})"
                   :schema="{
-                    cols: subTestVisible.method.inputVars.map(inputVar => Object({name: inputVar, type: 'string'}))
+                    cols: [{name: 'point', type: 'string'}]
+                      .concat(methodByIdMap[subTestVisible.method]
+                        .inputVars
+                        .map(inputVar => Object({name: inputVar, type: 'string'}))
+                      )
+
                   }"
                   
                 />
                 <!-- <div>subTest: {{subTestVisible}}</div> -->
                 <button
-                  @click="log(subTestVisible)"
+                  @click="calc(subTestVisible)"
                   class="button is-small is-link mt-2">Calc
                 </button>
 
@@ -177,7 +182,6 @@
                     .then(() => this.subTests = this.subTests.filter(item => item.id !== subTestVisible.id))"
                   class="button is-small is-danger ml-1 mt-2">Delete
                 </button>
-
               </div>
 
             </div>
@@ -308,6 +312,14 @@ export default {
     })
   },
   methods: {
+    calc (subTestVisible) {
+      console.log(subTestVisible)
+      console.log(this.funcs)
+      console.log(this.instruments)
+    },
+    log (arg) {
+      console.log(arg)
+    },
     compareSubset (a, b) {
       /*
       Deep compare objects removing some keys
@@ -442,6 +454,13 @@ export default {
     },
   },
   computed: {
+    methodByIdMap () {
+      return this.methods.reduce((a, c) => {
+        a[c.id] = c
+        return a
+      }, {})
+
+    },
     subTestsVarInstrumentMaps () {
       /*
       return array of objects that map variables for selected 

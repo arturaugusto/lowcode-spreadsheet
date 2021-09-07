@@ -81,7 +81,7 @@
             />
           </div>
           <div class="mt-2">
-            <button @click="saveFunc" class="button is-small is-success">Save function</button>
+            <!-- <button @click="saveFunc" class="button is-small is-success">Save function</button> -->
             <button @click="deleteFunc" class="button is-danger is-small ml-2">Delete function</button>
           </div>
         </div>
@@ -90,7 +90,7 @@
       </section>
       
       <footer class="modal-card-foot">
-        <button @click="$emit('saveItem', 'model', model)" class="button is-success">Save model</button>
+        <button @click="saveFunc().then($emit('saveItem', 'model', model))" class="button is-success">Save model</button>
         <button @click="$emit('deleteItem', 'model', blur=true)" class="button is-danger">Delete model</button>
         <!-- <button class="button">Cancel</button> -->
       </footer>
