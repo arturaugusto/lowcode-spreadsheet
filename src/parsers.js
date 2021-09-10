@@ -1,29 +1,6 @@
-
-const getMatrixRangeRows = (matrix, targetRange) => {
-  /*
-  Filter matrix to a subSet corresponding to targetRange
-
-  matrix: [Array]
-  targetRange: String
-  return: [Array]
-  */
-  let targetRangeNum = parseFloat(targetRange)
-  let res = []
-  let rangeFound = false
-
-  for (var i = 0; i < matrix.length; i++) {
-    let row = matrix[i]
-    let colVal = row['range']
-    if (rangeFound && !isNaN(colVal)) break
-    rangeFound = rangeFound || !isNaN(colVal) && (targetRangeNum <= colVal)
-    if (rangeFound) res.push(row)
-  }
-  return res
-}
-
 const reshapeMatrix = (matrix) => {
   /*
-  matrix: [[Object]]
+  matrix: [{cells:[Object]}]
   return: [Object]
   */
   return matrix.map(row => {
@@ -34,25 +11,75 @@ const reshapeMatrix = (matrix) => {
   })
 }
 
-const getSubtestFuncData = (subTest, funcs, methods) => {
+const rowsReducer = (rows, textFields) => {
+  /*
+  rows: [[Object]]
+  textFields: [String]
+  return: [Object]
+  */
+  return rows.reduce((a, c) => {
+    Object.keys(c).forEach(k => {
+      a[k] = a[k] || []
+      if (textFields && textFields.indexOf(k) !== -1) {
+        if (c[k] && !c[k].trim()) a[k].push(c[k])
+      } else {
+        if (!isNaN(c[k])) a[k].push(c[k])
+      }
+    })
+    return a
+  }, {})
+}
+
+const keysToArrays = (groupedMatrices, textFields) => {
+  /*
+  groupedMatrices: [[Object]]
+  textFields: [String]
+  return: [Object]
+  */
+  return groupedMatrices.map(item => rowsReducer(item, textFields))
+}
+
+
+const groupBy = (reshapedMatrix, targetCol) => {
+  /*
+  reshapedMatrix: [Object]
+  targetCol: String
+  return: [[Object]]
+  */
+  return reshapedMatrix.reduce((a, c) => {
+    if (!isNaN(c[targetCol])) {
+      a.push([c])
+    } else {
+      a[a.length-1].push(c)
+    }
+    return a
+  }, [])
+}
+
+
+const getSubtestData = (subTest) => {
+  /*
+  subTest
+  return [[Object]]
+  */
   let matrix = reshapeMatrix(subTest.ss.matrix)
-  console.log(matrix)
-  // matrix.reduce((a, c) => [])
+  let byRange = groupBy(matrix, 'range')
+  return byRange.map(rangeGroup => {
+    let byPoint = groupBy(rangeGroup, 'point')
+    return keysToArrays(byPoint)
+  })  
+}
 
-  // let bla = matrix.reduce((a, row) => {
-  //   return row['range']
-  // }, [])
-  // console.log(bla)
-
-  Object.keys(subTest.varFuncMap).map(k => {
+const getSubtestFuncData = (subTest, funcs, methods) => {
+  return (Object.keys(subTest.varFuncMap).map(k => {
     let funcId = subTest.varFuncMap[k]
     let func = funcs.filter(func => func.id === funcId)[0]
 
-    let matrix = reshapeMatrix(func.ss.matrix)
-    let res = getMatrixRangeRows(matrix, 10)
-    // console.log(res)
-  })
+    let funcMatrix = reshapeMatrix(func.ss.matrix)
+    console.log(groupBy(funcMatrix, 'range').filter(item => item[0].range === 100))
+
+  }))
   return 1
 }
 
-export { getSubtestFuncData }
+export { getSubtestFuncData, getSubtestData }
