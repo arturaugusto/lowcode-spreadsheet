@@ -1,3 +1,46 @@
+const exprReplace = (expr, payloadData) => {
+  /*
+  expr: String VI-VC
+  payloadData: [Object]
+  */
+  // determine variable tree. Eg:
+  /*
+    {
+      "VI": [
+        "VI.Resol",
+        "VI.Spec"
+      ],
+      "VC": [
+        "VC.Resol",
+        "VC.Spec"
+      ]
+    }  
+  */
+  let tree = payloadData.reduce((a, c) => {
+    let targetVar = c.var.split('.')[0]
+    if (!a[targetVar]) {
+      a[targetVar] = []
+    }
+    a[targetVar].push(c.var)
+    return a
+  }, {})
+
+  // add pareteses to vars. Eg:
+  // "(VI)-(VC)"
+
+  expr = Object.keys(tree).reduce((a, c) => 
+    a.replace(new RegExp(`\\b${c}\\b`, 'g'), `(${c})`)
+  , expr)
+
+  // now joins with sum of quantities. Eg:
+  // (VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)
+  let res = Object.keys(tree).reduce((a, c) => 
+    a.replace(new RegExp(`\\b${c}\\b`, 'g'), `${tree[c].join('+')}`)
+  , expr)
+  
+  return res
+}
+
 const isCellTrueValue = (val) => {
   /*
   val: String
@@ -59,7 +102,11 @@ const groupBy = (reshapedMatrix, targetCol) => {
     if (isCellTrueValue(c[targetCol])) {
       a.push([c])
     } else {
-      a[a.length-1].push(c)
+      if (a.length) {
+        a[a.length-1].push(c)
+      } else {
+        a.push(c)
+      }
     }
     return a
   }, [])
@@ -80,12 +127,21 @@ const groupBy = (reshapedMatrix, targetCol) => {
 // }
 
 
-const funcReshapedMatrixMap = (subTest, funcs) => {
+const getComponents = (subTest, funcs, methods) => {
+  let method = methods.filter(item => item.id === subTest.method)[0]
+  // necessary fields from method necessary to computation
+  // let methodFields = {expr: method.expr}
+
   let groupedSubTestData = groupBy(reshapeMatrix(subTest.ss.matrix), 'range')
   
   return groupedSubTestData.map(subTestRangeDataMatrix => {
-    return keysToArrays(groupBy(subTestRangeDataMatrix, 'point')).map(subTestRangePointDataMatrix => {
-      return Object.keys(subTest.varFuncMap).map(k => {
+    if (!subTestRangeDataMatrix[0]) return []
+    let range = subTestRangeDataMatrix[0].range
+    let data = keysToArrays(groupBy(subTestRangeDataMatrix, 'point')).map(subTestRangePointDataMatrix => {
+      
+      let point = subTestRangePointDataMatrix.point[0]
+
+      let data = Object.keys(subTest.varFuncMap).map(k => {
         let funcId = subTest.varFuncMap[k]
 
         // get selected function for var
@@ -115,19 +171,30 @@ const funcReshapedMatrixMap = (subTest, funcs) => {
         return subRange.map(item => Object({
           var: `${k}.${item.uncDesc}`,
           dist: `${item.dist}`,
-          args: [ 
-            parseFloat(item.a),// TODO: Parse string to formula
-            parseFloat(item.b),// TODO: Parse string to formula
-            parseFloat(item.c),// TODO: Parse string to formula
+          args: [
+            isNaN(parseFloat(item.a)) ? null : parseFloat(item.a),// TODO: Parse string to formula
+            isNaN(parseFloat(item.b)) ? null : parseFloat(item.b),// TODO: Parse string to formula
+            isNaN(parseFloat(item.c)) ? null : parseFloat(item.c),// TODO: Parse string to formula
           ],
         }))
+      }).flat()
+
+      return Object({
+        point: point,
+        payload: {
+          expr: exprReplace(method.expr, data),
+          p: 0.95, // TODO: take it from user
+          data: data,
+        }
       })
     })
-  }).flat(3)
+
+    return Object({
+      range: range,
+      data: data,
+    })
+
+  })
 }
 
-
-// const getSubtestFuncData = (subTest, funcs, methods) => {
-// }
-
-export { funcReshapedMatrixMap }
+export default { getComponents, exprReplace }

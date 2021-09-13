@@ -1,4 +1,4 @@
-import { getSubtestData, funcReshapedMatrixMap } from '../src/parsers.js'
+import parsers from '../src/parsers.js'
 
 const funcs = [
   {
@@ -639,6 +639,54 @@ const subTest = {
       {
         "cells": [
           {
+            "id": "xAzd5cV7",
+            "col": "range",
+            "val": "100"
+          },
+          {
+            "id": "67xCS2Hc",
+            "col": "point",
+            "val": "80"
+          },
+          {
+            "id": "kOGbFYim",
+            "col": "VI",
+            "val": "80.1"
+          },
+          {
+            "id": "A1Abt7LN",
+            "col": "VC",
+            "val": "80"
+          }
+        ],
+        "id": "P3KSKgX6"
+      },
+      {
+        "cells": [
+          {
+            "id": "1EtOVP1o",
+            "col": "range"
+          },
+          {
+            "id": "h6vn59xn",
+            "col": "point"
+          },
+          {
+            "id": "cZM66kEr",
+            "col": "VI",
+            "val": "80.2"
+          },
+          {
+            "id": "DyOU1WfH",
+            "col": "VC",
+            "val": "80"
+          }
+        ],
+        "id": "1069zjvi"
+      },
+      {
+        "cells": [
+          {
             "id": "xh62c5zY",
             "col": "range",
             "val": ""
@@ -651,12 +699,12 @@ const subTest = {
           {
             "id": "PD65vObJ",
             "col": "VI",
-            "val": "5.2"
+            "val": "80.1"
           },
           {
             "id": "F8u9atN7",
             "col": "VC",
-            "val": "5.1"
+            "val": "80"
           }
         ],
         "id": "5cVmI73s"
@@ -689,52 +737,201 @@ const methods = [
 ]
 
 
+const expected = [
+  {
+    "range": "10",
+    "data": [
+      {
+        "point": "2",
+        "payload": {
+          "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+          "p": 0.95,
+          "data": [
+            {
+              "var": "VI.Resol",
+              "dist": "Rect",
+              "args": [
+                -0.01,
+                0.01,
+                null
+              ]
+            },
+            {
+              "var": "VI.Spec",
+              "dist": "Normal",
+              "args": [
+                0.004,
+                null,
+                null
+              ]
+            },
+            {
+              "var": "VC.Resol",
+              "dist": "Rect",
+              "args": [
+                -0.01,
+                0.01,
+                null
+              ]
+            },
+            {
+              "var": "VC.Spec",
+              "dist": "Normal",
+              "args": [
+                0.004,
+                null,
+                null
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "point": "5",
+        "payload": {
+          "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+          "p": 0.95,
+          "data": [
+            {
+              "var": "VI.Resol",
+              "dist": "Rect",
+              "args": [
+                -0.01,
+                0.01,
+                null
+              ]
+            },
+            {
+              "var": "VI.Spec",
+              "dist": "Normal",
+              "args": [
+                0.004,
+                null,
+                null
+              ]
+            },
+            {
+              "var": "VC.Resol",
+              "dist": "Rect",
+              "args": [
+                -0.01,
+                0.01,
+                null
+              ]
+            },
+            {
+              "var": "VC.Spec",
+              "dist": "Normal",
+              "args": [
+                0.004,
+                null,
+                null
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "range": "100",
+    "data": [
+      {
+        "point": "80",
+        "payload": {
+          "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+          "p": 0.95,
+          "data": [
+            {
+              "var": "VI.Resol",
+              "dist": "Rect",
+              "args": [
+                -0.1,
+                0.1,
+                null
+              ]
+            },
+            {
+              "var": "VI.Spec",
+              "dist": "Normal",
+              "args": [
+                0.08,
+                null,
+                null
+              ]
+            },
+            {
+              "var": "VC.Resol",
+              "dist": "Rect",
+              "args": [
+                -0.1,
+                0.1,
+                null
+              ]
+            },
+            {
+              "var": "VC.Spec",
+              "dist": "Normal",
+              "args": [
+                0.08,
+                null,
+                null
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
 
-test('parse subTest data', () => {
 
-  // let subtestData = [
-  //   [
-  //     {
-  //       "range": [
-  //         '10'
-  //       ],
-  //       "point": [
-  //         '2'
-  //       ],
-  //       "VI": [
-  //         '2',
-  //         '2.1',
-  //         '2'
-  //       ],
-  //       "VC": [
-  //         '2.1',
-  //         '2.3',
-  //         '2'
-  //       ]
-  //     },
-  //     {
-  //       "range": [],
-  //       "point": [
-  //         '5'
-  //       ],
-  //       "VI": [
-  //         '5',
-  //         '5.1',
-  //         '5.2'
-  //       ],
-  //       "VC": [
-  //         '5.1',
-  //         '5.4',
-  //         '5.1'
-  //       ]
-  //     }
-  //   ]
-  // ]
-  // expect(subtestData).toStrictEqual(getSubtestData(subTest))
+
+test('test parse subTest data', () => {
+  // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods), 0, 2))
+  // parsers.getComponents(subTest, funcs, methods)
+  expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
 });
 
-test('parse subTest data', () => {
-  console.log(JSON.stringify(funcReshapedMatrixMap(subTest, funcs), 0, 2))
-  // expect(subtestData).toStrictEqual(getSubtestData(subTest))
-});
+test('test exprReplace', () => {
+  let payloadData = [
+    {
+      "var": "VI.Resol",
+      "dist": "Rect",
+      "args": [
+        -0.1,
+        0.1,
+        null
+      ]
+    },
+    {
+      "var": "VI.Spec",
+      "dist": "Normal",
+      "args": [
+        0.08,
+        null,
+        null
+      ]
+    },
+    {
+      "var": "VC.Resol",
+      "dist": "Rect",
+      "args": [
+        -0.1,
+        0.1,
+        null
+      ]
+    },
+    {
+      "var": "VC.Spec",
+      "dist": "Normal",
+      "args": [
+        0.08,
+        null,
+        null
+      ]
+    }
+  ]
 
+  expect(parsers.exprReplace("VI-VC", payloadData)).toBe('(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)')
+});

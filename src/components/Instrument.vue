@@ -74,7 +74,7 @@
             <div v-if="subTests.length" class="block">
               <!-- subTestsVisible: {{subTestsVisible}} -->
               <!-- {{methods}} -->
-              <div v-for="subTestVisible in subTestsVisible" :key="subTestVisible.id" class="box has-background-grey-lighter  ">
+              <div v-for="(subTestVisible) in subTestsVisible" :key="subTestVisible.id" class="box has-background-grey-lighter  ">
                 <!-- {{subTestVisible.rev}} -->
                 <div class="control block mt-2">
                   <span>Method: </span> <span v-if="methods && methods.length" class="select is-primary field mr-2">
@@ -130,6 +130,9 @@
 
                     <!-- function chooser -->
                     <p v-if="subTestVisible.varInstrumentMap[inputVar] && funcsForSubTestsVars && funcsForSubTestsVars.length" class="control">
+                      <span class="button is-static">
+                        Function
+                      </span>
                       <span class="select">
                         <select v-model="subTestVisible.varFuncMap[inputVar]">
                           <option
@@ -168,9 +171,29 @@
                   }"
                   
                 />
-                <pre>{{ genTestData(subTestVisible)}}</pre>
-                <pre>{{ genTestData(funcs)}}</pre>
-                <pre>{{ methods }}</pre>
+
+
+                <!-- <p class="control mr-2">
+                  <span class="select">
+                    <select>
+                      <option
+                        v-for="item in calData[0]"
+                        :key="item"
+                        :value="item"
+                        >{{ item.range }}
+                      </option>
+                    </select>
+                  </span>
+                </p> -->
+
+
+                <!-- <pre>{{calData}}</pre> -->
+                <!-- <pre>{{ genTestData(subTestVisible)}}</pre> -->
+                <!-- <pre>{{ genTestData(funcs)}}</pre> -->
+                <!-- <pre>{{ methods }}</pre> -->
+
+                
+
 
                 <button
                   @click="calc(subTestVisible)"
@@ -187,6 +210,40 @@
                     .then(() => this.subTests = this.subTests.filter(item => item.id !== subTestVisible.id))"
                   class="button is-small is-danger ml-1 mt-2">Delete
                 </button>
+
+
+                <div>
+                  <div
+                    v-for="row in subTestComponents(subTestVisible)"
+                    :key="row.range"
+                  >
+                    <!-- {{ row }} -->
+                    range: {{ row.range }}
+                    <table class="table is-bordered">
+                      <!-- <thead>
+                        <tr>
+                          <th></th>
+                        </tr>
+                      </thead> -->
+                      <tbody>
+                        <tr v-for="(row, i) in row.data" :key="i">
+                          <td>
+                            {{row.point}}
+                          </td>
+                          <td>
+                            {{row.payload}}
+                          </td>
+                          <td>
+                            <button>Calc</button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- <pre>{{subTestComponents(subTestVisible)}}</pre> -->
+
               </div>
 
             </div>
@@ -218,6 +275,7 @@
 <script>
 import PouchSpreadsheet from '@/components/PouchSpreadsheet.vue'
 import timeToId from '@/timeToId.js'
+import parsers from '@/parsers.js'
 
 export default {
   components: {
@@ -310,6 +368,7 @@ export default {
 
   },
   mounted () {
+    this.parsers = parsers
     Promise.all([this.db.rel.find('instrument'), this.db.rel.find('model')])
     .then(responses => {
       this.instruments = responses[0].instruments
@@ -317,6 +376,10 @@ export default {
     })
   },
   methods: {
+    subTestComponents (subTest) {
+      if (!subTest || !subTest.ss || !subTest.ss.matrix) return []
+      return this.parsers.getComponents(subTest, this.funcs, this.methods)
+    },
     genTestData (data) {
       return JSON.stringify(data, (k, v) => ['events', 'classes', 'rev'].indexOf(k)  !== -1 ? undefined : v, 2)
     },
@@ -462,6 +525,12 @@ export default {
     },
   },
   computed: {
+    // calData () {
+    //   return this.subTestsVisible.map(subTest => {
+    //     if (!subTest || !subTest.ss || !subTest.ss.matrix) return []
+    //     return this.parsers.getComponents(subTest, this.funcs, this.methods)
+    //   })
+    // },
     methodByIdMap () {
       return this.methods.reduce((a, c) => {
         a[c.id] = c
