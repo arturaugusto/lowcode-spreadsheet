@@ -260,12 +260,18 @@ export default {
       }
 
       this.eventIndex = this.eventIndex - 1
+      this.$emit('update:modelValue', {events: this.events, matrix: this.matrixVisible})
+      console.log('undo')
+
     },
     addEvent (event) {
       this.events.splice(this.eventIndex)
       let evendDoc = {id: timeToId()+randStr(2), e: event}
       this.events.push(evendDoc)
       this.eventIndex = this.events.length
+
+      this.$emit('update:modelValue', {events: this.events, matrix: this.matrixVisible})
+      console.log('addEvent')
     },
     startEditingCell (cell) {
       this.editingCell = cell
