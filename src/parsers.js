@@ -46,8 +46,9 @@ const isCellTrueValue = (val) => {
   val: String
   return: Boolean
   */
-  if (val !== undefined && val !== null) return Boolean(val.trim())
-  return false
+  if (val === undefined || val === null) return false
+  let valTrim = val.trim()
+  return valTrim !== undefined && valTrim !== null && valTrim !== ""
 }
 
 const reshapeMatrix = (matrix) => {
@@ -84,11 +85,12 @@ const rowsReducer = (rows, textFields) => {
 
 const keysToArrays = (groupedMatrices, textFields) => {
   /*
-  groupedMatrices: [[Object]]
+  groupedMatrices: [[Object]] or [Object]
   textFields: [String]
   return: [Object]
   */
-  return groupedMatrices.map(item => rowsReducer(item, textFields))
+  return groupedMatrices.map(item => rowsReducer(item.constructor === Array ? item : [item], textFields))
+  // return groupedMatrices.map(item => rowsReducer(item, textFields))
 }
 
 
@@ -103,7 +105,9 @@ const groupBy = (reshapedMatrix, targetCol) => {
       a.push([c])
     } else {
       if (a.length) {
-        a[a.length-1].push(c)
+        if (a[a.length-1].constructor === Array) {
+          a[a.length-1].push(c)
+        }
       } else {
         a.push(c)
       }
@@ -131,12 +135,15 @@ const getComponents = (subTest, funcs, methods) => {
   let method = methods.filter(item => item.id === subTest.method)[0]
   // necessary fields from method necessary to computation
   // let methodFields = {expr: method.expr}
-
-  let groupedSubTestData = groupBy(reshapeMatrix(subTest.ss.matrix), 'range')
+  if (!subTest.ss.matrix) return []
+  let reshapedMatrix = reshapeMatrix(subTest.ss.matrix)
+  if (!reshapedMatrix) return []
+  let groupedSubTestData = groupBy(reshapedMatrix, 'range')
   
   return groupedSubTestData.map(subTestRangeDataMatrix => {
     if (!subTestRangeDataMatrix[0]) return []
     let range = subTestRangeDataMatrix[0].range
+
     let data = keysToArrays(groupBy(subTestRangeDataMatrix, 'point')).map(subTestRangePointDataMatrix => {
       
       let point = subTestRangePointDataMatrix.point[0]
@@ -157,6 +164,7 @@ const getComponents = (subTest, funcs, methods) => {
             break
           }
         }
+        if (!subRange) return []
         
         // readouts.
         // TODO: uncertanty from desvPad

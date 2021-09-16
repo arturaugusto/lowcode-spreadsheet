@@ -211,27 +211,22 @@
                   class="button is-small is-danger ml-1 mt-2">Delete
                 </button>
 
+                <!-- {{subTestsComponents[stIndex]}} -->
 
-                <div>
+
+                <!-- <div>
                   <div
-                    v-for="row in subTestComponents(subTestVisible)"
-                    :key="row.range"
+                    v-for="row in subTestsComponents[stIndex]"
+                    :key="subTestsComponents+'_'+stIndex"
                   >
-                    <!-- {{ row }} -->
-                    range: {{ row.range }}
                     <table class="table is-bordered">
-                      <!-- <thead>
-                        <tr>
-                          <th></th>
-                        </tr>
-                      </thead> -->
                       <tbody>
-                        <tr v-for="(row, i) in row.data" :key="i">
+                        <tr v-for="rowDataItem in row.data" :key="JSON.stringify(rowDataItem)">
                           <td>
-                            {{row.point}}
+                            {{rowDataItem.point}}
                           </td>
                           <td>
-                            {{row.payload}}
+                            {{rowDataItem.payload}}
                           </td>
                           <td>
                             <button>Calc</button>
@@ -241,9 +236,7 @@
                     </table>
                   </div>
                 </div>
-
-                <!-- <pre>{{subTestComponents(subTestVisible)}}</pre> -->
-
+ -->                
               </div>
 
             </div>
@@ -290,6 +283,19 @@ export default {
   emits: ['saveItem', 'goToMain', 'deleteItem'],
 
   watch: {
+    // subTestsVisible: {
+      // handler () {
+      //   this.$nextTick(() => {
+      //     this.subTestsVisible.forEach(subTest => {
+      //       let res = this.parsers.getComponents(subTest, this.funcs, this.methods)
+      //       this.subTestsComponents[subTest.id] = res
+      //     })
+      //     // this.subTestsComponents = JSON.parse(JSON.stringify(res))
+      //   })
+        
+      // },
+      // deep: true,
+    // },
     subTestsVarInstrumentMapsIds: {
       handler (ids, prevIds) {
         if (JSON.stringify(ids) !== JSON.stringify(prevIds)) {
@@ -376,17 +382,16 @@ export default {
     })
   },
   methods: {
-    subTestComponents (subTest) {
-      if (!subTest || !subTest.ss || !subTest.ss.matrix) return []
-      return this.parsers.getComponents(subTest, this.funcs, this.methods)
-    },
     genTestData (data) {
       return JSON.stringify(data, (k, v) => ['events', 'classes', 'rev'].indexOf(k)  !== -1 ? undefined : v, 2)
     },
-    calc (subTestVisible) {
-      console.log(subTestVisible)
-      console.log(this.funcs)
-      console.log(this.instruments)
+    calc (subTest) {
+      console.log(subTest)
+      let res = this.parsers.getComponents(subTest, this.funcs, this.methods)
+      console.log(res)
+      // console.log(subTestVisible)
+      // console.log(this.funcs)
+      // console.log(this.instruments)
     },
     log (arg) {
       console.log(arg)
@@ -525,9 +530,8 @@ export default {
     },
   },
   computed: {
-    // calData () {
+    // subTestsComponents () {
     //   return this.subTestsVisible.map(subTest => {
-    //     if (!subTest || !subTest.ss || !subTest.ss.matrix) return []
     //     return this.parsers.getComponents(subTest, this.funcs, this.methods)
     //   })
     // },

@@ -885,13 +885,76 @@ const expected = [
   }
 ]
 
-
-
 test('test parse subTest data', () => {
   // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods), 0, 2))
   // parsers.getComponents(subTest, funcs, methods)
   expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
 });
+
+
+test('test parse subTest empty', () => {
+  const subTest = {
+    "test": "-Mj0NOpz",
+    "func": "-Mj0Jxkp",
+    "ss": {},
+    "varInstrumentMap": {},
+    "varFuncMap": {},
+    "method": "-Mj0Jkwr",
+    "id": "-Mj0NPbG",
+  }
+
+  expect([]).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
+});
+
+
+test('test parse subTest empty 2', () => {
+  const subTest = {
+    "test": "-Mjd2ZNX",
+    "func": "-Mj0Jxkp",
+    "ss": {
+      "matrix": [
+        {
+          "cells": [
+            {
+              "id": "TJm6dA7h",
+              "col": "range",
+              "val": "10"
+            },
+            {
+              "id": "Uf6JE54S",
+              "col": "point"
+            },
+            {
+              "id": "2I4Qmlu3",
+              "col": "VI"
+            },
+            {
+              "id": "V9rUJeHD",
+              "col": "VC"
+            }
+          ],
+          "id": "X44kyoyq",
+          "classes": [
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      ]
+    },
+    "varInstrumentMap": {},
+    "varFuncMap": {},
+    "id": "-Mjd2_r-",
+    "rev": "1-211a31f3f6198cbd41cfcdb26be83ea2",
+    "method": "-Mj0Jkwr"
+  }
+
+  let expected = [{"range":"10","data":[{"payload":{"expr":"VI-VC","p":0.95,"data":[]},"point":undefined}]}]
+  // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods)))
+  expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
+});
+
 
 test('test exprReplace', () => {
   let payloadData = [

@@ -1,5 +1,9 @@
-import gum from '../src/gum.js'
+/**
+ * @jest-environment node
+ */
 
+
+import gum from '../src/gum.js'
 
 let payload = {
   "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
@@ -44,9 +48,22 @@ let payload = {
   ]
 }
 
+const MC_MOCK = () => {
+  var sensitivityAnalysis = (payload) => {
+    return new Promise((resolve, reject) => {
+      resolve(payload.data.map(() => 1))
+    }, () => {
+      reject(null)
+    })
+  }
+  return {
+    sensitivityAnalysis: sensitivityAnalysis,
+  }
+}
 
 test('test gum', () => {
-  console.log(gum.calc(payload))
+
+  // console.log(gum.calc(payload, MC_MOCK))
   // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods), 0, 2))
   // parsers.getComponents(subTest, funcs, methods)
   // expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
