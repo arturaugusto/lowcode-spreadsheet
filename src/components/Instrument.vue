@@ -211,6 +211,9 @@
                   class="button is-small is-danger ml-1 mt-2">Delete
                 </button>
 
+                <pre>{{ subTestVisible.res }}</pre>
+                
+
                 <!-- {{subTestsComponents[stIndex]}} -->
 
 
@@ -269,6 +272,7 @@
 import PouchSpreadsheet from '@/components/PouchSpreadsheet.vue'
 import timeToId from '@/timeToId.js'
 import parsers from '@/parsers.js'
+import gum from '@/gum.js'
 
 export default {
   components: {
@@ -382,16 +386,35 @@ export default {
     })
   },
   methods: {
-    genTestData (data) {
-      return JSON.stringify(data, (k, v) => ['events', 'classes', 'rev'].indexOf(k)  !== -1 ? undefined : v, 2)
-    },
+    // genTestData (data) {
+    //   return JSON.stringify(data, (k, v) => ['events', 'classes', 'rev'].indexOf(k)  !== -1 ? undefined : v, 2)
+    // },
+
+
     calc (subTest) {
-      console.log(subTest)
-      let res = this.parsers.getComponents(subTest, this.funcs, this.methods)
-      console.log(res)
-      // console.log(subTestVisible)
-      // console.log(this.funcs)
-      // console.log(this.instruments)
+      const MC = () => {
+        var sensitivityAnalysis = (payload) => {
+          return new Promise((resolve) => {
+            resolve(window.MC.sens_ana_js(payload))
+          })
+        }
+        return {
+          sensitivityAnalysis: sensitivityAnalysis,
+        }
+      }
+
+      this.parsers.getComponents(subTest, this.funcs, this.methods)
+        .forEach(rangeData => {
+          rangeData.data.forEach(pointData => {
+            gum.calc(pointData.payload, MC).then(res => {
+              console.log(res)
+            })
+          })
+        })
+
+      // gum.calc(payload, MC).then(res => {
+      //   subTest.res = res
+      // })
     },
     log (arg) {
       console.log(arg)

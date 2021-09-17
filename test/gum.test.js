@@ -1,9 +1,5 @@
-/**
- * @jest-environment node
- */
-
-
 import gum from '../src/gum.js'
+
 
 let payload = {
   "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
@@ -22,8 +18,8 @@ let payload = {
       "var": "VI.Spec",
       "dist": "Normal",
       "args": [
+        0,
         0.08,
-        null,
         null
       ]
     },
@@ -40,8 +36,8 @@ let payload = {
       "var": "VC.Spec",
       "dist": "Normal",
       "args": [
+        0,
         0.08,
-        null,
         null
       ]
     }
@@ -62,9 +58,74 @@ const MC_MOCK = () => {
 }
 
 test('test gum', () => {
-
-  // console.log(gum.calc(payload, MC_MOCK))
-  // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods), 0, 2))
-  // parsers.getComponents(subTest, funcs, methods)
-  // expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
+  gum.calc(payload, MC_MOCK).then(res => {
+    let expected = {
+      "budgetMatrix": [
+        {
+          "var": "VI.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.1,
+            0.1,
+            null
+          ],
+          "veff": Infinity,
+          "y": 0,
+          "u": 0.05773502691896258,
+          "coef": 1,
+          "ux": 0.05773502691896258
+        },
+        {
+          "var": "VI.Spec",
+          "dist": "Normal",
+          "args": [
+            0,
+            0.08,
+            null
+          ],
+          "veff": Infinity,
+          "y": 0,
+          "u": 0.08,
+          "coef": 1,
+          "ux": 0.08
+        },
+        {
+          "var": "VC.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.1,
+            0.1,
+            null
+          ],
+          "veff": Infinity,
+          "y": 0,
+          "u": 0.05773502691896258,
+          "coef": 1,
+          "ux": 0.05773502691896258
+        },
+        {
+          "var": "VC.Spec",
+          "dist": "Normal",
+          "args": [
+            0,
+            0.08,
+            null
+          ],
+          "veff": Infinity,
+          "y": 0,
+          "u": 0.08,
+          "coef": 1,
+          "ux": 0.08
+        }
+      ],
+      "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+      "p": 0.95,
+      "u": 0.13952299690970899,
+      "U": 0.2734650739430296,
+      "k": 1.96,
+      "veff": 1000
+    }
+    // console.log(JSON.stringify(res, 0, 2))
+    expect(res).toStrictEqual(expected)
+  })
 });
