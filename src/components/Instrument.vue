@@ -407,6 +407,9 @@ export default {
         .forEach(rangeData => {
           rangeData.data.forEach(pointData => {
             gum.calc(pointData.payload, MC).then(res => {
+              // console.log(pointData)
+              subTest.results = res
+              // pointData.res = res
               console.log(res)
             })
           })

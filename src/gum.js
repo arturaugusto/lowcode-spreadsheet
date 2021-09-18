@@ -79,8 +79,9 @@ const expectationAndVariance = (item) => {
 }
 
 const normalizeQuantity = (quantity) => {
+
   let res = {
-    var: quantity.var.replaceAll('.', '__'),
+    var: quantity.var.replace(/\./g, '__'),
     dist: quantity.dist,
     args: quantity.args.map(x => x),
   }
@@ -134,12 +135,11 @@ const calc = (payload, mc) => {
   
   let analysisArgument = {
     var_estimates: budgetMatrix.map(x => x.y),
-    expr: payload.expr.replaceAll('.', '__'),
+    expr: payload.expr.replace(/\./g, '__'),
     data: payload.data.map(normalizeQuantity),
     p: 0, // dont use p, TODO: remove
   }
 
-  console.log(analysisArgument)
   return MC.sensitivityAnalysis(analysisArgument).then(coefs => {
     coefs.forEach((coef, i) => {
       budgetMatrix[i].coef = coef
