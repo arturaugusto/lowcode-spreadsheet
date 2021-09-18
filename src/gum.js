@@ -19,9 +19,9 @@ const expectationAndVariance = (item) => {
     // TODO: detect the prec to avoid cuting unsnificante digits at some situations
     return {y: y, u: u}
   }
-  if (item.dist === 'Resol') {
-    return {y: 0, u: Math.sqrt(Math.pow(item.args[1]*2, 2) / 12)}
-  }
+  // if (item.dist === 'Resol') {
+  //   return {y: 0, u: Math.sqrt(Math.pow(item.args[1]*2, 2) / 12)}
+  // }
   if (item.dist === 'Uniform' || item.dist === 'Rect') {
     let a = item.args[0]
     let b = item.args[1]
@@ -78,43 +78,68 @@ const expectationAndVariance = (item) => {
   }
 }
 
+const normalizeQuantity = (quantity) => {
+  let res = {
+    var: quantity.var.replaceAll('.', '__'),
+    dist: quantity.dist,
+    args: quantity.args.map(x => x),
+  }
+
+  if (quantity.dist === 'Rect') {
+    res.dist = 'Uniform'
+    if (quantity.args[1] === null) {
+      res.args[0] = -quantity.args[0]
+      res.args[1] = quantity.args[0]
+    }
+  }
+
+  // normal with expectation unset, let it be 0
+  if (quantity.dist === 'Normal' && quantity.args[1] === null) {
+    res.args[0] = 0
+    res.args[1] = quantity.args[0]
+  }
+
+  if (quantity.dist === 'Triangular') {
+    if (quantity.args[1] === null) {
+      res.args[0] = -quantity.args[0]
+      res.args[1] = quantity.args[0]
+    }
+    res.args[2] = (res.args[0] + res.args[1])/2
+  }
+
+  res.args = res.args.map(x => x === null ? 0 : x)
+  return res
+
+}
+
+
 const calc = (payload, mc) => {
   // console.log(payload)
   let MC = mc()
-  let budgetMatrix = payload.data.map(item => {
-    let obj = Object({
-      var: item.var,
-      dist: item.dist,
-      args: item.args,
-      veff: item.dist === 'StudentsT' ? item.args[2] : 
-           (item.dist === 'Input'     ? item.args.length-1 : Infinity)
+  let budgetMatrix = payload.data.map(quantity => {
+    let quantityExtended = Object({
+      var: quantity.var,
+      dist: quantity.dist,
+      args: quantity.args,
+      veff: quantity.dist === 'StudentsT' ? quantity.args[2] : 
+           (quantity.dist === 'Input'     ? quantity.args.length-1 : Infinity)
     })
     
-    let yuObj = expectationAndVariance(obj)
-    obj.y = yuObj.y
-    obj.u = yuObj.u
+    let yuObj = expectationAndVariance(normalizeQuantity(quantityExtended))
+    quantityExtended.y = yuObj.y
+    quantityExtended.u = yuObj.u
 
-    return obj
+    return quantityExtended
   })
   
   let analysisArgument = {
     var_estimates: budgetMatrix.map(x => x.y),
-    expr: payload.expr,
-    data: payload.data,
+    expr: payload.expr.replaceAll('.', '__'),
+    data: payload.data.map(normalizeQuantity),
     p: 0, // dont use p, TODO: remove
   }
 
-// MC.sens_ana_js({"expr": "VI", "var_estimates": [1], p: 0, data: [{
-//       "var": "VI",
-//       "dist": "Uniform",
-//       "args": [
-//         -0.01,
-//         0.01,
-//         0
-//       ]
-//     }
-// ]})
-
+  console.log(analysisArgument)
   return MC.sensitivityAnalysis(analysisArgument).then(coefs => {
     coefs.forEach((coef, i) => {
       budgetMatrix[i].coef = coef
