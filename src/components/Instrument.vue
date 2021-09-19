@@ -403,17 +403,23 @@ export default {
         }
       }
 
-      this.parsers.getComponents(subTest, this.funcs, this.methods)
-        .forEach(rangeData => {
-          rangeData.data.forEach(pointData => {
-            gum.calc(pointData.payload, MC).then(res => {
-              // console.log(pointData)
-              subTest.results = res
-              // pointData.res = res
-              console.log(res)
+      console.log(subTest)
+      let parsedRangeData = this.parsers.getComponents(subTest, this.funcs, this.methods)
+
+      let promises = parsedRangeData.map(rangeData => {
+          return rangeData.data.map(pointData => {
+            return gum.calc(pointData.payload, MC).then(res => {
+              pointData.res = res
             })
           })
-        })
+        }).flat()
+
+      Promise.all(promises).then(() => {
+        subTest.res = parsedRangeData
+      })
+      .catch(err => {
+        console.log(err)
+      })
 
       // gum.calc(payload, MC).then(res => {
       //   subTest.res = res

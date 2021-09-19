@@ -8,7 +8,7 @@
       </header>
       <section class="modal-card-body" id="modelCardBody">
 
-        <!-- {{method}} -->
+        {{method}}
 
         <div class="field">
           <label class="label">Name</label>
@@ -23,6 +23,27 @@
             <textarea v-model="method.expr" class="textarea" placeholder="expr"></textarea>
           </div>
         </div>
+
+        <p class="title is-4">Variables features</p>
+
+        <div v-for="inputVar in method.inputVars" :key="inputVar" class="field has-addons">
+          
+          <p class="control">
+            <span class="button is-static">
+              {{inputVar}}
+            </span>
+          </p>
+
+          <div class="control">
+            <span class="select is-primary field mr-2">
+              <select v-model="method.traits[inputVar]">
+                <option value="isItem">Test bench item</option>
+                <option value="isUUT">Item under test</option>
+              </select>
+            </span>
+          </div>
+        </div>
+
 
 
         <!-- Content ... -->
@@ -49,6 +70,8 @@ export default {
       handler (val) {
         if (!this.method) return
         this.method.inputVars = val
+        this.method.traits = this.method.traits || {}
+
       },
       // deep: true,
     },

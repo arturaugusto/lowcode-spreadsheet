@@ -148,9 +148,9 @@ const getComponents = (subTest, funcs, methods) => {
       
       let point = subTestRangePointDataMatrix.point[0]
 
-      let data = Object.keys(subTest.varFuncMap).map(k => {
+      
+      let data = Object.keys(subTest.varFuncMap).filter(k => method.inputVars.indexOf(k) !== -1).map(k => {
         let funcId = subTest.varFuncMap[k]
-
         // get selected function for var
         let func = funcs.filter(func => func.id === funcId)[0]
         let funcRangeMatrixGroups = groupBy(reshapeMatrix(func.ss.matrix), 'range')
@@ -165,6 +165,20 @@ const getComponents = (subTest, funcs, methods) => {
           }
         }
         if (!subRange) return []
+        // console.log(k)
+        // let referenceComponents = subRange
+        // console.log(referenceComponents)
+        
+        let referenceComponents
+        if (method.traits[k] === 'isUUT') {
+          referenceComponents = subRange.filter(item => {
+            // components with Spec on it's name
+            // with isUUT trait are ignored
+            return item.uncDesc.indexOf('Spec') === -1
+          })
+        } else {
+          referenceComponents = subRange
+        }
         
         // readouts.
         // TODO: uncertanty from desvPad
@@ -176,7 +190,7 @@ const getComponents = (subTest, funcs, methods) => {
         // TODO: interpolate uncertainties. Use i var from loop
         // to do this
 
-        return subRange.map(item => Object({
+        return referenceComponents.map(item => Object({
           var: `${k}.${item.uncDesc}`,
           dist: `${item.dist}`,
           args: [

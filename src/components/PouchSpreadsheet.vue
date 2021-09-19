@@ -106,6 +106,7 @@ export default {
       if (JSON.stringify(val) !== JSON.stringify(prevVal)) {
         let changeColsEvent = this.createChangeColsEvent()
         this.doEvent(changeColsEvent)
+        this.$emit('update:modelValue', {events: this.events, matrix: this.matrixVisible})
       }
     },
     'modelValue': function (value) {

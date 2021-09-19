@@ -713,11 +713,14 @@ const subTest = {
   },
   "varInstrumentMap": {
     "VI": "-Mj0MZA3",
-    "VC": "-Mj0MZA3"
+    "VC": "-Mj0MZA3",
+    "XXX": "qwerty",
   },
   "varFuncMap": {
     "VI": "-Mj0Jxkp",
-    "VC": "-Mj0Jxkp"
+    "VC": "-Mj0Jxkp",
+    "XXX": "ytrewq",
+
   },
   "method": "-Mj0Jkwr",
   "id": "-Mj0NPbG"
@@ -732,7 +735,8 @@ const methods = [
     ],
     "expr": "VI-VC",
     "id": "-Mj0Jkwr",
-    "rev": "2-8e80713d491c684febc5974834e3f5ba"
+    "rev": "2-8e80713d491c684febc5974834e3f5ba",
+    "traits": { "VI": "isUUT", "VC": "isItem" }
   }
 ]
 
@@ -744,7 +748,7 @@ const expected = [
       {
         "point": "2",
         "payload": {
-          "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+          "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
           "p": 0.95,
           "data": [
             {
@@ -753,15 +757,6 @@ const expected = [
               "args": [
                 -0.01,
                 0.01,
-                null
-              ]
-            },
-            {
-              "var": "VI.Spec",
-              "dist": "Normal",
-              "args": [
-                0.004,
-                null,
                 null
               ]
             },
@@ -789,7 +784,7 @@ const expected = [
       {
         "point": "5",
         "payload": {
-          "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+          "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
           "p": 0.95,
           "data": [
             {
@@ -798,15 +793,6 @@ const expected = [
               "args": [
                 -0.01,
                 0.01,
-                null
-              ]
-            },
-            {
-              "var": "VI.Spec",
-              "dist": "Normal",
-              "args": [
-                0.004,
-                null,
                 null
               ]
             },
@@ -839,7 +825,7 @@ const expected = [
       {
         "point": "80",
         "payload": {
-          "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+          "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
           "p": 0.95,
           "data": [
             {
@@ -848,15 +834,6 @@ const expected = [
               "args": [
                 -0.1,
                 0.1,
-                null
-              ]
-            },
-            {
-              "var": "VI.Spec",
-              "dist": "Normal",
-              "args": [
-                0.08,
-                null,
                 null
               ]
             },
