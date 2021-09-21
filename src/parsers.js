@@ -1,3 +1,20 @@
+const groupParsedComponents = (parsedData, uutVar) => {
+  /*
+  parsedData: [Object]
+  uutVar: String
+  return: [Object]
+  */
+  return parsedData.reduce((a, c) => {
+    let group = a.filter(item => item && item.name === c.rangeMap[uutVar])[0]
+    if (!group) {
+      group = group || {name: c.rangeMap[uutVar], data: []}
+      a.push(group)
+    }
+    group.data.push(c)
+    return a
+  }, [])
+}
+
 const exprReplace = (expr, payloadData) => {
   /*
   expr: String VI-VC
@@ -41,11 +58,13 @@ const exprReplace = (expr, payloadData) => {
   return res
 }
 
-const isCellTrueValue = (val) => {
+const isCellTrueValue = (obj, key) => {
   /*
-  val: String
+  obj: Object
+  key: String
   return: Boolean
   */
+  let val = obj[key]
   if (val === undefined || val === null) return false
   let valTrim = val.trim()
   return valTrim !== undefined && valTrim !== null && valTrim !== ""
@@ -76,7 +95,7 @@ const rowsReducer = (rows, textFields) => {
       if (textFields && textFields.indexOf(k) !== -1) {
         if (c[k] && !c[k].trim()) a[k].push(c[k])
       } else {
-        if (isCellTrueValue(c[k])) a[k].push(c[k])
+        if (isCellTrueValue(c, k)) a[k].push(c[k])
       }
     })
     return a
@@ -94,14 +113,15 @@ const keysToArrays = (groupedMatrices, textFields) => {
 }
 
 
-const groupBy = (reshapedMatrix, targetCol) => {
+const groupBy = (reshapedMatrix, targetCol, detector) => {
   /*
   reshapedMatrix: [Object]
   targetCol: String
+  detector: Function - Used to detect new group
   return: [[Object]]
   */
   return reshapedMatrix.reduce((a, c) => {
-    if (isCellTrueValue(c[targetCol])) {
+    if (detector(c, targetCol)) {
       a.push([c])
     } else {
       if (a.length) {
@@ -138,22 +158,26 @@ const getComponents = (subTest, funcs, methods) => {
   if (!subTest.ss.matrix) return []
   let reshapedMatrix = reshapeMatrix(subTest.ss.matrix)
   if (!reshapedMatrix) return []
-  let groupedSubTestData = groupBy(reshapedMatrix, 'range')
+  
+  // console.log(reshapedMatrix)
+  let groupedSubTestData = groupBy(reshapedMatrix, 'point', isCellTrueValue)
+  // console.log(groupedSubTestData)
+  // let groupedSubTestData = [reshapedMatrix]
   
   return groupedSubTestData.map(subTestRangeDataMatrix => {
     if (!subTestRangeDataMatrix[0]) return []
-    let range = subTestRangeDataMatrix[0].range
-
-    let data = keysToArrays(groupBy(subTestRangeDataMatrix, 'point')).map(subTestRangePointDataMatrix => {
+    let data = keysToArrays(groupBy(subTestRangeDataMatrix, 'point', isCellTrueValue)).map(subTestRangePointDataMatrix => {
       
       let point = subTestRangePointDataMatrix.point[0]
 
+      let rangeMap = {}
       
       let data = Object.keys(subTest.varFuncMap).filter(k => method.inputVars.indexOf(k) !== -1).map(k => {
+        
         let funcId = subTest.varFuncMap[k]
         // get selected function for var
         let func = funcs.filter(func => func.id === funcId)[0]
-        let funcRangeMatrixGroups = groupBy(reshapeMatrix(func.ss.matrix), 'range')
+        let funcRangeMatrixGroups = groupBy(reshapeMatrix(func.ss.matrix), 'range', isCellTrueValue)
         
         // get range for var value
         let varValue = parseFloat(subTestRangePointDataMatrix[k][0])
@@ -165,9 +189,8 @@ const getComponents = (subTest, funcs, methods) => {
           }
         }
         if (!subRange) return []
-        // console.log(k)
-        // let referenceComponents = subRange
-        // console.log(referenceComponents)
+        
+        rangeMap[k] = subRange[0].rangeDesc
         
         let referenceComponents
         if (method.traits[k] === 'isUUT') {
@@ -203,6 +226,7 @@ const getComponents = (subTest, funcs, methods) => {
 
       return Object({
         point: point,
+        rangeMap: rangeMap,
         payload: {
           expr: exprReplace(method.expr, data),
           p: 0.95, // TODO: take it from user
@@ -211,12 +235,9 @@ const getComponents = (subTest, funcs, methods) => {
       })
     })
 
-    return Object({
-      range: range,
-      data: data,
-    })
+    return data
 
-  })
+  }).flat()
 }
 
-export default { getComponents, exprReplace }
+export default { getComponents, exprReplace, groupParsedComponents }

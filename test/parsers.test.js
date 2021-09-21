@@ -743,122 +743,124 @@ const methods = [
 
 const expected = [
   {
-    "range": "10",
-    "data": [
-      {
-        "point": "2",
-        "payload": {
-          "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
-          "p": 0.95,
-          "data": [
-            {
-              "var": "VI.Resol",
-              "dist": "Rect",
-              "args": [
-                -0.01,
-                0.01,
-                null
-              ]
-            },
-            {
-              "var": "VC.Resol",
-              "dist": "Rect",
-              "args": [
-                -0.01,
-                0.01,
-                null
-              ]
-            },
-            {
-              "var": "VC.Spec",
-              "dist": "Normal",
-              "args": [
-                0.004,
-                null,
-                null
-              ]
-            }
+    "point": "2",
+    "rangeMap": {
+      "VI": "10 V",
+      "VC": "10 V"
+    },
+    "payload": {
+      "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+      "p": 0.95,
+      "data": [
+        {
+          "var": "VI.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.01,
+            0.01,
+            null
+          ]
+        },
+        {
+          "var": "VC.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.01,
+            0.01,
+            null
+          ]
+        },
+        {
+          "var": "VC.Spec",
+          "dist": "Normal",
+          "args": [
+            0.004,
+            null,
+            null
           ]
         }
-      },
-      {
-        "point": "5",
-        "payload": {
-          "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
-          "p": 0.95,
-          "data": [
-            {
-              "var": "VI.Resol",
-              "dist": "Rect",
-              "args": [
-                -0.01,
-                0.01,
-                null
-              ]
-            },
-            {
-              "var": "VC.Resol",
-              "dist": "Rect",
-              "args": [
-                -0.01,
-                0.01,
-                null
-              ]
-            },
-            {
-              "var": "VC.Spec",
-              "dist": "Normal",
-              "args": [
-                0.004,
-                null,
-                null
-              ]
-            }
-          ]
-        }
-      }
-    ]
+      ]
+    }
   },
   {
-    "range": "100",
-    "data": [
-      {
-        "point": "80",
-        "payload": {
-          "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
-          "p": 0.95,
-          "data": [
-            {
-              "var": "VI.Resol",
-              "dist": "Rect",
-              "args": [
-                -0.1,
-                0.1,
-                null
-              ]
-            },
-            {
-              "var": "VC.Resol",
-              "dist": "Rect",
-              "args": [
-                -0.1,
-                0.1,
-                null
-              ]
-            },
-            {
-              "var": "VC.Spec",
-              "dist": "Normal",
-              "args": [
-                0.08,
-                null,
-                null
-              ]
-            }
+    "point": "5",
+    "rangeMap": {
+      "VI": "10 V",
+      "VC": "10 V"
+    },
+    "payload": {
+      "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+      "p": 0.95,
+      "data": [
+        {
+          "var": "VI.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.01,
+            0.01,
+            null
+          ]
+        },
+        {
+          "var": "VC.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.01,
+            0.01,
+            null
+          ]
+        },
+        {
+          "var": "VC.Spec",
+          "dist": "Normal",
+          "args": [
+            0.004,
+            null,
+            null
           ]
         }
-      }
-    ]
+      ]
+    }
+  },
+  {
+    "point": "80",
+    "rangeMap": {
+      "VI": "100 V",
+      "VC": "100 V"
+    },
+    "payload": {
+      "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+      "p": 0.95,
+      "data": [
+        {
+          "var": "VI.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.1,
+            0.1,
+            null
+          ]
+        },
+        {
+          "var": "VC.Resol",
+          "dist": "Rect",
+          "args": [
+            -0.1,
+            0.1,
+            null
+          ]
+        },
+        {
+          "var": "VC.Spec",
+          "dist": "Normal",
+          "args": [
+            0.08,
+            null,
+            null
+          ]
+        }
+      ]
+    }
   }
 ]
 
@@ -927,7 +929,7 @@ test('test parse subTest empty 2', () => {
     "method": "-Mj0Jkwr"
   }
 
-  let expected = [{"range":"10","data":[{"payload":{"expr":"VI-VC","p":0.95,"data":[]},"point":undefined}]}]
+  let expected = []
   // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods)))
   expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
 });
@@ -974,4 +976,207 @@ test('test exprReplace', () => {
   ]
 
   expect(parsers.exprReplace("VI-VC", payloadData)).toBe('(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)')
+});
+
+
+
+test('test groupParsedComponents', () => {
+  const parsedData = [
+    {
+      "point": "1",
+      "rangeMap": {
+        "VI": "10 V",
+        "VC": "10 V"
+      },
+      "payload": {
+        "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+        "p": 0.95,
+        "data": [
+          {
+            "var": "VI.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ]
+          },
+          {
+            "var": "VC.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ]
+          },
+          {
+            "var": "VC.Spec",
+            "dist": "Normal",
+            "args": [
+              0.004,
+              null,
+              null
+            ]
+          }
+        ]
+      },
+      "res": {
+        "budgetMatrix": [
+          {
+            "var": "VI.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ],
+            "veff": null,
+            "y": 0,
+            "u": 0.005773502691896258,
+            "coef": 1,
+            "ux": 0.005773502691896258
+          },
+          {
+            "var": "VC.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ],
+            "veff": null,
+            "y": 0,
+            "u": 0.005773502691896258,
+            "coef": 1,
+            "ux": 0.005773502691896258
+          },
+          {
+            "var": "VC.Spec",
+            "dist": "Normal",
+            "args": [
+              0.004,
+              null,
+              null
+            ],
+            "veff": null,
+            "y": 0,
+            "u": 0.004,
+            "coef": 1,
+            "ux": 0.004
+          }
+        ],
+        "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+        "p": 0.95,
+        "u": 0.009092121131323903,
+        "U": 0.01782055741739485,
+        "k": 1.96,
+        "veff": 1000
+      }
+    }
+  ]
+
+  const expected = [
+    {
+      "name": "10 V",
+      "data": [
+        {
+          "point": "1",
+          "rangeMap": {
+            "VI": "10 V",
+            "VC": "10 V"
+          },
+          "payload": {
+            "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+            "p": 0.95,
+            "data": [
+              {
+                "var": "VI.Resol",
+                "dist": "Rect",
+                "args": [
+                  -0.01,
+                  0.01,
+                  null
+                ]
+              },
+              {
+                "var": "VC.Resol",
+                "dist": "Rect",
+                "args": [
+                  -0.01,
+                  0.01,
+                  null
+                ]
+              },
+              {
+                "var": "VC.Spec",
+                "dist": "Normal",
+                "args": [
+                  0.004,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "res": {
+            "budgetMatrix": [
+              {
+                "var": "VI.Resol",
+                "dist": "Rect",
+                "args": [
+                  -0.01,
+                  0.01,
+                  null
+                ],
+                "veff": null,
+                "y": 0,
+                "u": 0.005773502691896258,
+                "coef": 1,
+                "ux": 0.005773502691896258
+              },
+              {
+                "var": "VC.Resol",
+                "dist": "Rect",
+                "args": [
+                  -0.01,
+                  0.01,
+                  null
+                ],
+                "veff": null,
+                "y": 0,
+                "u": 0.005773502691896258,
+                "coef": 1,
+                "ux": 0.005773502691896258
+              },
+              {
+                "var": "VC.Spec",
+                "dist": "Normal",
+                "args": [
+                  0.004,
+                  null,
+                  null
+                ],
+                "veff": null,
+                "y": 0,
+                "u": 0.004,
+                "coef": 1,
+                "ux": 0.004
+              }
+            ],
+            "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
+            "p": 0.95,
+            "u": 0.009092121131323903,
+            "U": 0.01782055741739485,
+            "k": 1.96,
+            "veff": 1000
+          }
+        }
+      ]
+    }
+  ]
+
+
+  // console.log(JSON.stringify(parsers.groupParsedComponents(parsedData, 'VI'), 0, 2))
+  expect(parsers.groupParsedComponents(parsedData, 'VI')).toStrictEqual(expected)
 });

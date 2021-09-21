@@ -161,7 +161,6 @@
                   :computedClass="() => Object({})"
                   :schema="{
                     cols: [
-                      {name: 'range', type: 'string'},
                       {name: 'point', type: 'string'},
                     ]
                     .concat(methodByIdMap[subTestVisible.method]
@@ -403,27 +402,28 @@ export default {
         }
       }
 
-      console.log(subTest)
-      let parsedRangeData = this.parsers.getComponents(subTest, this.funcs, this.methods)
+      let method = this.methods.filter(item => item.id === subTest.method)[0]
 
-      let promises = parsedRangeData.map(rangeData => {
-          return rangeData.data.map(pointData => {
-            return gum.calc(pointData.payload, MC).then(res => {
-              pointData.res = res
-            })
-          })
-        }).flat()
+      let uutVar = Object.keys(method.inputVarsFeatures).filter(k => method.traits[k] === 'isUUT')[0]
+
+      let parsedData = this.parsers.getComponents(subTest, this.funcs, this.methods)
+
+      let promises = parsedData.map(pointData => {
+        return gum.calc(pointData.payload, MC).then(res => {
+          pointData.res = res
+        })
+      })
 
       Promise.all(promises).then(() => {
-        subTest.res = parsedRangeData
+        // group by UUT ranges
+        // console.log(JSON.stringify(parsedData, 0 ,2))
+        subTest.res = parsers.groupParsedComponents(parsedData, uutVar)
+        console.log('done')
       })
       .catch(err => {
         console.log(err)
       })
 
-      // gum.calc(payload, MC).then(res => {
-      //   subTest.res = res
-      // })
     },
     log (arg) {
       console.log(arg)
