@@ -302,6 +302,8 @@ export default {
       let method = {
         id: id,
         name: 'new method',
+        templateColsN: 3,
+        template: {},
       }
       return this.db.rel.save('method', method)
       .then((response) => {

@@ -210,25 +210,24 @@
                   class="button is-small is-danger ml-1 mt-2">Delete
                 </button>
 
-                <pre>{{ subTestVisible.res }}</pre>
-                
 
                 <!-- {{subTestsComponents[stIndex]}} -->
 
 
-                <!-- <div>
+                <div>
                   <div
-                    v-for="row in subTestsComponents[stIndex]"
-                    :key="subTestsComponents+'_'+stIndex"
+                    v-for="row in subTestVisible.res"
+                    :key="row"
                   >
+                    <p>{{row.name}}</p>
                     <table class="table is-bordered">
                       <tbody>
-                        <tr v-for="rowDataItem in row.data" :key="JSON.stringify(rowDataItem)">
+                        <tr v-for="rowData in row.data" :key="rowData">
                           <td>
-                            {{rowDataItem.point}}
+                            {{rowData.point}}
                           </td>
                           <td>
-                            {{rowDataItem.payload}}
+                            {{rowData.res}}
                           </td>
                           <td>
                             <button>Calc</button>
@@ -238,7 +237,9 @@
                     </table>
                   </div>
                 </div>
- -->                
+
+                <pre>{{ subTestVisible.res }}</pre>                
+                
               </div>
 
             </div>

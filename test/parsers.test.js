@@ -1,5 +1,60 @@
 import parsers from '../src/parsers.js'
 
+test('test toSingleLine with eval', () => {
+  // this simple mock the eval and return the counter for earch evaluation
+  const MC_MOCK = () => {
+    let count = 0
+    return {
+      simple_eval: () => {
+        return count++
+      }
+    }
+  }
+  let mc = MC_MOCK()
+
+  let res = parsers.toSingleLine(`VC = VRp/Rp + sin(90)
+B = 1/2
+VC = A + VC
+
+A = 22
+42
+VC = B - VC
+VI-VC`, mc, ['VI', 'VRp', 'Rp', 'A'], [0, 0, 0, 0])
+  // console.log(res)
+  expect(res).toStrictEqual({ expr: 'VI-(3)', state: { VC: 3, B: 1 } })
+});
+
+
+test('test toSingleLine', () => {
+  let res = parsers.toSingleLine(`VC = VRp/Rp + sin(90)
+B = 1/2
+VC = A + VC
+
+
+42
+VC = B - VC
+VI-VC`)
+  // console.log(res)
+  expect(res).toStrictEqual({"expr": "VI-((1/2) - (A + (VRp/Rp + sin(90))))", "state": {"B": "1/2", "VC": "(1/2) - (A + (VRp/Rp + sin(90)))"}})
+});
+
+
+test('test allVars', () => {
+  let res = parsers.allVars(`VC = VRp/Rp + sin(90)
+VI-VC`)
+  expect(res).toStrictEqual([ 'VC', 'VRp', 'Rp', 'VI' ])
+});
+
+
+test('test inputVars', () => {
+  let res = parsers.inputVars(`VC = VRp/Rp + sin(90)
+VI-VC`)
+  expect(res).toStrictEqual([ 'VRp', 'Rp', 'VI' ])
+});
+
+
+
+
 const funcs = [
   {
     "name": "Model A DC",
@@ -1180,3 +1235,5 @@ test('test groupParsedComponents', () => {
   // console.log(JSON.stringify(parsers.groupParsedComponents(parsedData, 'VI'), 0, 2))
   expect(parsers.groupParsedComponents(parsedData, 'VI')).toStrictEqual(expected)
 });
+
+

@@ -24,7 +24,7 @@
           </div>
         </div>
 
-        <p class="title is-4">Variables features</p>
+        <p class="title is-5 pt-6">Variables traits</p>
 
         <div v-for="inputVar in method.inputVars" :key="inputVar" class="field has-addons">
           
@@ -44,9 +44,30 @@
           </div>
         </div>
 
+        <p class="title is-5 pt-6">Report Template</p>
 
+        <div>
+          <input type="number" v-model="method.templateColsN">
+        </div>
+
+        {{method.templateCols}}
+
+        <PouchSpreadsheet
+          v-if="method.template"
+          v-model="method.template"
+          :computedClass="() => Object({})"
+          :schema="{
+            cols: templateColsSchema
+          }"
+          
+        />
 
         <!-- Content ... -->
+        <p>input vars</p>
+        {{ method.inputVars }}
+
+        <p>all vars</p>
+        {{ allVars }}
       </section>
       
       <footer class="modal-card-foot">
@@ -54,13 +75,20 @@
         <button @click="$emit('deleteItem', 'method', blur=true)" class="button is-danger">Delete method</button>
         <!-- <button class="button">Cancel</button> -->
       </footer>
+
     </div>
   </div>
 </template>
 <script>
+import PouchSpreadsheet from '@/components/PouchSpreadsheet.vue'
+import parsers from '@/parsers.js'
+
 
 export default {
   name: 'Method',
+  components: {
+    PouchSpreadsheet,
+  },
   props: {
     parentMethod: Object,
   },
@@ -79,14 +107,28 @@ export default {
   data () {
     return {
       method: {},
+
     }
   },
   mounted () {
+    this.parsers = parsers
     this.method = JSON.parse(JSON.stringify(this.parentMethod))
+    // console.log(this.method)
+    this.method.templateColsN = this.method.templateColsN || 3
+    this.method.template = this.method.template || {}
   },
   methods: {
   },
   computed: {
+    templateColsSchema () {
+      return new Array(parseFloat(this.method.templateColsN))
+        .fill(undefined)
+        .map((x, i) => Object({
+          name: 'col'+i,
+          type: 'string',
+        }))
+
+    },
     inputVars () {
       /*
       Determine from expression, whitch variables are expected to be
@@ -96,25 +138,14 @@ export default {
       */
 
       if (!this.method || !this.method.expr) return []
-      
-      const exprOperatorsRegex = new RegExp(/[\s+*\-()%^=&|/:]+/)
-      const startWithDigitOrReservedRegex = new RegExp(/^[\d_]/)
-      const exprTokens = 'log base e pi int ceil floor round modulus abs sign min max sin cos tan sinh cosh tanh asin acos atan asinh acosh atanh'.split(' ')
-      
-      const leftHandSideTokens = this.method.expr.split('\n')
-        .filter(item => item.includes('='))
-        .map(item => item.split('=')[0].trim())
 
-      return this.method.expr.split(exprOperatorsRegex)
-        // remove empty
-        .filter(item => item.trim().length)
-        // start with digit
-        .filter(item => !item.match(startWithDigitOrReservedRegex))
-        .filter(item => !exprTokens.includes(item))
-        .filter(item => !leftHandSideTokens.includes(item))
-        .map(item => item.trim())
-        .reduce((a, c) => a.indexOf(c) === -1 ? a.push(c)&&a : a,[])
+      return this.parsers.inputVars(this.method.expr)
     },
+    allVars () {
+      if (!this.method || !this.method.expr) return []
+      return this.parsers.allVars(this.method.expr)
+    },
+
   },
 }
 </script>
