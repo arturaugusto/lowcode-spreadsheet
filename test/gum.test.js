@@ -2,7 +2,7 @@ import gum from '../src/gum.js'
 
 
 let payload = {
-  "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+  "expr": "(VI.Resol+VI.Spec+VI.Readout)-(VC.Resol+VC.Spec)",
   "p": 0.95,
   "data": [
     {
@@ -20,6 +20,15 @@ let payload = {
       "args": [
         0,
         0.08,
+        null
+      ]
+    },
+    {
+      "var": "VI.Readout",
+      "dist": "Uniform",
+      "args": [
+        1,
+        1,
         null
       ]
     },
@@ -90,6 +99,20 @@ test('test gum', () => {
           "ux": 0.08
         },
         {
+          "var": "VI.Readout",
+          "dist": "Uniform",
+          "args": [
+            1,
+            1,
+            null
+          ],
+          "veff": Infinity,
+          "y": 1,
+          "u": 0,
+          "coef": 1,
+          "ux": 0
+        },
+        {
           "var": "VC.Resol",
           "dist": "Rect",
           "args": [
@@ -118,7 +141,7 @@ test('test gum', () => {
           "ux": 0.08
         }
       ],
-      "expr": "(VI.Resol+VI.Spec)-(VC.Resol+VC.Spec)",
+      "expr": "(VI.Resol+VI.Spec+VI.Readout)-(VC.Resol+VC.Spec)",
       "p": 0.95,
       "u": 0.13952299690970899,
       "U": 0.2734650739430296,

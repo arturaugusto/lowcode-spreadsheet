@@ -1,24 +1,7 @@
 import {invt} from './invt.js'
 
-function meanAndSd (arr) {
-  let n = arr.length
-  let mean = arr.reduce((a, c) => a + c, 0) / n
-  let sd = Math.sqrt(arr.map(x => Math.pow(x - mean, 2)).reduce((a, c) => a + c) / (n-1), 0)
-  return [mean, sd]
-}
 
 const expectationAndVariance = (item) => {
-  if (item.dist === 'Input') {
-    let floatArray = item.args.map(parseFloat).filter(x => !isNaN(x))
-
-    // let [y, sd] = meanAndSd(floatArray.map(x => parseFloat(x)*prfx[item.pref]))
-    let [y, sd] = meanAndSd(floatArray.map(x => parseFloat(x)))
-
-    let u = sd / Math.sqrt(floatArray.length)
-    
-    // TODO: detect the prec to avoid cuting unsnificante digits at some situations
-    return {y: y, u: u}
-  }
   // if (item.dist === 'Resol') {
   //   return {y: 0, u: Math.sqrt(Math.pow(item.args[1]*2, 2) / 12)}
   // }
@@ -86,6 +69,12 @@ const normalizeQuantity = (quantity) => {
     args: quantity.args.map(x => x),
   }
 
+  if (quantity.dist === 'Readouts') {
+    res.dist = 'Normal'
+    res.args[0] = quantity.args[0]
+    res.args[1] = quantity.args[1]
+  }
+
   if (quantity.dist === 'Rect') {
     res.dist = 'Uniform'
     if (quantity.args[1] === null) {
@@ -110,9 +99,7 @@ const normalizeQuantity = (quantity) => {
 
   res.args = res.args.map(x => x === null ? 0 : x)
   return res
-
 }
-
 
 const calc = (payload, mc) => {
   // console.log(payload)
@@ -122,8 +109,7 @@ const calc = (payload, mc) => {
       var: quantity.var,
       dist: quantity.dist,
       args: quantity.args,
-      veff: quantity.dist === 'StudentsT' ? quantity.args[2] : 
-           (quantity.dist === 'Input'     ? quantity.args.length-1 : Infinity)
+      veff: ['StudentsT', 'Readouts'].indexOf(quantity.dist) !== -1 ? quantity.args[2] : Infinity,
     })
     
     let yuObj = expectationAndVariance(normalizeQuantity(quantityExtended))
@@ -146,9 +132,13 @@ const calc = (payload, mc) => {
       budgetMatrix[i].ux = coef*budgetMatrix[i].u
     })
 
-    let u = Math.sqrt(budgetMatrix.map(x => x.ux*x.ux).reduce((a, c) => a+c, 0))
+    // at some situations (eg. zero desvpad normal distribution), the ux can be NaN. 
+    // here we just ignore it
+    let budgetMatrixValidUnc = budgetMatrix.filter(item => !isNaN(item.ux))
 
-    let veff = Math.pow(u, 4) / budgetMatrix.reduce((a, c) => {
+    let u = Math.sqrt(budgetMatrixValidUnc.map(x => x.ux*x.ux).reduce((a, c) => a+c, 0))
+
+    let veff = Math.pow(u, 4) / budgetMatrixValidUnc.reduce((a, c) => {
       if (!isFinite(c.veff)) return a
       return a + Math.pow(c.ux, 4) / c.veff
     }, 0)

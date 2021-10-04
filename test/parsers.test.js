@@ -1,56 +1,14 @@
 import parsers from '../src/parsers.js'
 
-test('test toSingleLine with eval', () => {
-  // this simple mock the eval and return the counter for earch evaluation
-  const MC_MOCK = () => {
-    let count = 0
-    return {
-      simple_eval: () => {
-        return count++
-      }
+// this simple mock the eval and return the counter for earch evaluation
+const MC_MOCK = () => {
+  let count = 0
+  return {
+    simple_eval: () => {
+      return count++
     }
   }
-  let mc = MC_MOCK()
-
-  let res = parsers.toSingleLine(`VC = VRp/Rp + sin(90)
-B = 1/2
-VC = A + VC
-
-A = 22
-42
-VC = B - VC
-VI-VC`, mc, ['VI', 'VRp', 'Rp', 'A'], [0, 0, 0, 0])
-  // console.log(res)
-  expect(res).toStrictEqual({ expr: 'VI-(3)', state: { VC: 3, B: 1 } })
-});
-
-
-test('test toSingleLine', () => {
-  let res = parsers.toSingleLine(`VC = VRp/Rp + sin(90)
-B = 1/2
-VC = A + VC
-
-
-42
-VC = B - VC
-VI-VC`)
-  // console.log(res)
-  expect(res).toStrictEqual({"expr": "VI-((1/2) - (A + (VRp/Rp + sin(90))))", "state": {"B": "1/2", "VC": "(1/2) - (A + (VRp/Rp + sin(90)))"}})
-});
-
-
-test('test allVars', () => {
-  let res = parsers.allVars(`VC = VRp/Rp + sin(90)
-VI-VC`)
-  expect(res).toStrictEqual([ 'VC', 'VRp', 'Rp', 'VI' ])
-});
-
-
-test('test inputVars', () => {
-  let res = parsers.inputVars(`VC = VRp/Rp + sin(90)
-VI-VC`)
-  expect(res).toStrictEqual([ 'VRp', 'Rp', 'VI' ])
-});
+}
 
 
 
@@ -796,132 +754,186 @@ const methods = [
 ]
 
 
-const expected = [
-  {
-    "point": "2",
-    "rangeMap": {
-      "VI": "10 V",
-      "VC": "10 V"
-    },
-    "payload": {
-      "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
-      "p": 0.95,
-      "data": [
-        {
-          "var": "VI.Resol",
-          "dist": "Rect",
-          "args": [
-            -0.01,
-            0.01,
-            null
-          ]
-        },
-        {
-          "var": "VC.Resol",
-          "dist": "Rect",
-          "args": [
-            -0.01,
-            0.01,
-            null
-          ]
-        },
-        {
-          "var": "VC.Spec",
-          "dist": "Normal",
-          "args": [
-            0.004,
-            null,
-            null
-          ]
-        }
-      ]
-    }
-  },
-  {
-    "point": "5",
-    "rangeMap": {
-      "VI": "10 V",
-      "VC": "10 V"
-    },
-    "payload": {
-      "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
-      "p": 0.95,
-      "data": [
-        {
-          "var": "VI.Resol",
-          "dist": "Rect",
-          "args": [
-            -0.01,
-            0.01,
-            null
-          ]
-        },
-        {
-          "var": "VC.Resol",
-          "dist": "Rect",
-          "args": [
-            -0.01,
-            0.01,
-            null
-          ]
-        },
-        {
-          "var": "VC.Spec",
-          "dist": "Normal",
-          "args": [
-            0.004,
-            null,
-            null
-          ]
-        }
-      ]
-    }
-  },
-  {
-    "point": "80",
-    "rangeMap": {
-      "VI": "100 V",
-      "VC": "100 V"
-    },
-    "payload": {
-      "expr": "(VI.Resol)-(VC.Resol+VC.Spec)",
-      "p": 0.95,
-      "data": [
-        {
-          "var": "VI.Resol",
-          "dist": "Rect",
-          "args": [
-            -0.1,
-            0.1,
-            null
-          ]
-        },
-        {
-          "var": "VC.Resol",
-          "dist": "Rect",
-          "args": [
-            -0.1,
-            0.1,
-            null
-          ]
-        },
-        {
-          "var": "VC.Spec",
-          "dist": "Normal",
-          "args": [
-            0.08,
-            null,
-            null
-          ]
-        }
-      ]
-    }
-  }
-]
-
 test('test parse subTest data', () => {
-  // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods), 0, 2))
+  const expected = [
+    {
+      "point": "2",
+      "rangeMap": {
+        "VI": "10 V",
+        "VC": "10 V"
+      },
+      "payload": {
+        "expr": "(VI.Resol+VI.Readout)-(VC.Resol+VC.Spec+VC.Readout)",
+        "p": 0.95,
+        "data": [
+          {
+            "var": "VI.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ]
+          },
+          {
+            "var": "VI.Readout",
+            "dist": "Readouts",
+            "args": [
+              2.033333333333333,
+              0.03333333333333337,
+              2
+            ]
+          },
+          {
+            "var": "VC.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ]
+          },
+          {
+            "var": "VC.Spec",
+            "dist": "Normal",
+            "args": [
+              0.004,
+              null,
+              null
+            ]
+          },
+          {
+            "var": "VC.Readout",
+            "dist": "Readouts",
+            "args": [
+              2.1333333333333333,
+              0.08819171036881965,
+              2
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "point": "5",
+      "rangeMap": {
+        "VI": "10 V",
+        "VC": "10 V"
+      },
+      "payload": {
+        "expr": "(VI.Resol+VI.Readout)-(VC.Resol+VC.Spec+VC.Readout)",
+        "p": 0.95,
+        "data": [
+          {
+            "var": "VI.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ]
+          },
+          {
+            "var": "VI.Readout",
+            "dist": "Readouts",
+            "args": [
+              5.05,
+              0.04999999999999982,
+              1
+            ]
+          },
+          {
+            "var": "VC.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.01,
+              0.01,
+              null
+            ]
+          },
+          {
+            "var": "VC.Spec",
+            "dist": "Normal",
+            "args": [
+              0.004,
+              null,
+              null
+            ]
+          },
+          {
+            "var": "VC.Readout",
+            "dist": "Readouts",
+            "args": [
+              5.25,
+              0.15000000000000036,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "point": "80",
+      "rangeMap": {
+        "VI": "100 V",
+        "VC": "100 V"
+      },
+      "payload": {
+        "expr": "(VI.Resol+VI.Readout)-(VC.Resol+VC.Spec+VC.Readout)",
+        "p": 0.95,
+        "data": [
+          {
+            "var": "VI.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.1,
+              0.1,
+              null
+            ]
+          },
+          {
+            "var": "VI.Readout",
+            "dist": "Readouts",
+            "args": [
+              80.13333333333334,
+              0.03333333333333618,
+              2
+            ]
+          },
+          {
+            "var": "VC.Resol",
+            "dist": "Rect",
+            "args": [
+              -0.1,
+              0.1,
+              null
+            ]
+          },
+          {
+            "var": "VC.Spec",
+            "dist": "Normal",
+            "args": [
+              0.08,
+              null,
+              null
+            ]
+          },
+          {
+            "var": "VC.Readout",
+            "dist": "Uniform",
+            "args": [
+              80,
+              80,
+              null
+            ]
+          }
+        ]
+      }
+    }
+  ]
+
   // parsers.getComponents(subTest, funcs, methods)
+  // console.log(JSON.stringify(parsers.getComponents(subTest, funcs, methods), 0, 2))
   expect(expected).toStrictEqual(parsers.getComponents(subTest, funcs, methods))
 });
 
@@ -1035,7 +1047,9 @@ test('test exprReplace', () => {
 
 
 
-test('test groupParsedComponents', () => {
+test('test groupParseComponents', () => {
+
+
   const parsedData = [
     {
       "point": "1",
@@ -1130,6 +1144,8 @@ test('test groupParsedComponents', () => {
       }
     }
   ]
+
+
 
   const expected = [
     {
@@ -1232,8 +1248,8 @@ test('test groupParsedComponents', () => {
   ]
 
 
-  // console.log(JSON.stringify(parsers.groupParsedComponents(parsedData, 'VI'), 0, 2))
-  expect(parsers.groupParsedComponents(parsedData, 'VI')).toStrictEqual(expected)
+  // console.log(JSON.stringify(parsers.groupParseComponents(parsedData, 'VI'), 0, 2))
+  expect(parsers.groupParseComponents(parsedData, 'VI')).toStrictEqual(expected)
 });
 
 

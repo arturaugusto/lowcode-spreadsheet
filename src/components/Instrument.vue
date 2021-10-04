@@ -214,7 +214,7 @@
                 <!-- {{subTestsComponents[stIndex]}} -->
 
 
-                <div>
+                <!-- <div>
                   <div
                     v-for="row in subTestVisible.res"
                     :key="row"
@@ -236,9 +236,12 @@
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </div> -->
 
-                <pre>{{ subTestVisible.res }}</pre>                
+                <div v-html="subTestVisible.html"></div>
+
+                <hr>
+                <pre>{{ subTestVisible.res }}</pre>
                 
               </div>
 
@@ -272,7 +275,18 @@
 import PouchSpreadsheet from '@/components/PouchSpreadsheet.vue'
 import timeToId from '@/timeToId.js'
 import parsers from '@/parsers.js'
+import exprParsers from '@/exprParsers.js'
 import gum from '@/gum.js'
+import mustache from 'mustache'
+import MarkdownIt from 'markdown-it'
+const md = new MarkdownIt()
+
+md.renderer.rules.table_open = function () { 
+  return '<table class="table is-bordered is-striped is-hoverable">\n'; 
+}; 
+
+
+
 
 export default {
   components: {
@@ -394,8 +408,11 @@ export default {
     calc (subTest) {
       const MC = () => {
         var sensitivityAnalysis = (payload) => {
+          let payloadClone = JSON.parse(JSON.stringify(payload))
+          payloadClone.expr = exprParsers.toSingleLine(payload.expr).expr
+
           return new Promise((resolve) => {
-            resolve(window.MC.sens_ana_js(payload))
+            resolve(window.MC.sens_ana_js(payloadClone))
           })
         }
         return {
@@ -411,6 +428,7 @@ export default {
 
       let promises = parsedData.map(pointData => {
         return gum.calc(pointData.payload, MC).then(res => {
+          console.log(res)
           pointData.res = res
         })
       })
@@ -418,7 +436,16 @@ export default {
       Promise.all(promises).then(() => {
         // group by UUT ranges
         // console.log(JSON.stringify(parsedData, 0 ,2))
-        subTest.res = parsers.groupParsedComponents(parsedData, uutVar)
+        
+        if (uutVar) {
+          subTest.res = parsers.groupParseComponents(parsedData, uutVar)
+        } else {
+          subTest.res = parsedData
+        }
+        // console.log(method)
+        let reportingData = exprParsers.groupParsedComponentsUnnormalize(subTest.res, method.expr, window.MC)
+
+        subTest.html = md.render(mustache.render(method.template, {ranges: reportingData}))
         console.log('done')
       })
       .catch(err => {

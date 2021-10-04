@@ -46,28 +46,21 @@
 
         <p class="title is-5 pt-6">Report Template</p>
 
-        <div>
-          <input type="number" v-model="method.templateColsN">
-        </div>
 
-        {{method.templateCols}}
 
-        <PouchSpreadsheet
-          v-if="method.template"
-          v-model="method.template"
-          :computedClass="() => Object({})"
-          :schema="{
-            cols: templateColsSchema
-          }"
-          
-        />
+        <div class="field">
+          <label class="label">Template</label>
+          <div class="control">
+            <textarea v-model="method.template" class="textarea" placeholder=""></textarea>
+          </div>
+        </div>        
 
         <!-- Content ... -->
-        <p>input vars</p>
+        <!-- <p>input vars</p>
         {{ method.inputVars }}
 
         <p>all vars</p>
-        {{ allVars }}
+        {{ allVars }} -->
       </section>
       
       <footer class="modal-card-foot">
@@ -80,14 +73,15 @@
   </div>
 </template>
 <script>
-import PouchSpreadsheet from '@/components/PouchSpreadsheet.vue'
-import parsers from '@/parsers.js'
+// import PouchSpreadsheet from '@/components/PouchSpreadsheet.vue'
+// import parsers from '@/parsers.js'
+import exprParsers from '@/exprParsers.js'
 
 
 export default {
   name: 'Method',
   components: {
-    PouchSpreadsheet,
+    // PouchSpreadsheet,
   },
   props: {
     parentMethod: Object,
@@ -111,24 +105,14 @@ export default {
     }
   },
   mounted () {
-    this.parsers = parsers
     this.method = JSON.parse(JSON.stringify(this.parentMethod))
     // console.log(this.method)
-    this.method.templateColsN = this.method.templateColsN || 3
-    this.method.template = this.method.template || {}
+    this.method.template = this.method.template || ''
+    this.method.formarters = this.method.formarters || []
   },
   methods: {
   },
   computed: {
-    templateColsSchema () {
-      return new Array(parseFloat(this.method.templateColsN))
-        .fill(undefined)
-        .map((x, i) => Object({
-          name: 'col'+i,
-          type: 'string',
-        }))
-
-    },
     inputVars () {
       /*
       Determine from expression, whitch variables are expected to be
@@ -139,13 +123,19 @@ export default {
 
       if (!this.method || !this.method.expr) return []
 
-      return this.parsers.inputVars(this.method.expr)
+      return exprParsers.inputVars(this.method.expr)
     },
     allVars () {
       if (!this.method || !this.method.expr) return []
-      return this.parsers.allVars(this.method.expr)
+      return exprParsers.allVars(this.method.expr)
     },
 
   },
 }
 </script>
+
+<style scoped>
+textarea {
+  font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}  
+</style>

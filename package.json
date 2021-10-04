@@ -7,15 +7,17 @@
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "test": "jest"
-
   },
   "dependencies": {
     "bulma": "^0.9.3",
     "core-js": "^3.6.5",
+    "markdown-it": "^12.2.0",
+    "mustache": "^4.2.0",
     "pouchdb": "^7.2.2",
     "pouchdb-upsert": "^2.2.0",
     "relational-pouch": "^4.0.0",
-    "vue": "^3.0.0"
+    "vue": "^3.0.0",
+    "w-mc": "file:./src/wasm"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.0",
